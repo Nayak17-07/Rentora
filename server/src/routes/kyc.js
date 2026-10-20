@@ -196,25 +196,59 @@ function verifyXmlSignature(xmlString) {
 
     // Extract X509Certificate if embedded
     const certMatch = xmlString.match(/<X509Certificate>([\s\S]*?)<\/X509Certificate>/i);
-    let certInfo = null;
-    let isOfficialUidai = false;
+    const signedInfoMatch = xmlString.match(/<SignedInfo[\s\S]*?<\/SignedInfo>/i);
+    const signatureValueMatch = xmlString.match(/<SignatureValue>([\s\S]*?)<\/SignatureValue>/i);
 
-    if (certMatch && certMatch[1]) {
-      try {
-        const cleanCert = certMatch[1].replace(/\s+/g, '');
-        const pem = `-----BEGIN CERTIFICATE-----\n${cleanCert.match(/.{1,64}/g).join('\n')}\n-----END CERTIFICATE-----`;
-        const x509 = new crypto.X509Certificate(pem);
-        isOfficialUidai = /UIDAI|Unique Identification|CCA|National Informatics/i.test(`${x509.issuer} ${x509.subject}`);
-        certInfo = {
-          subject: x509.subject,
-          issuer: x509.issuer,
-          validTo: x509.validTo,
-          fingerprint: x509.fingerprint256,
-          isOfficialUidai
-        };
-      } catch (certErr) {
-        console.warn('X.509 Certificate parse warning:', certErr.message);
-      }
+    if (!certMatch || !signedInfoMatch || !signatureValueMatch) {
+      return {
+        hasSignature: true,
+        verified: false,
+        error: 'Malformed XML-DSig: Missing SignedInfo, SignatureValue, or X509Certificate'
+      };
+    }
+
+    const cleanCert = certMatch[1].replace(/\s+/g, '');
+    const pem = `-----BEGIN CERTIFICATE-----\n${cleanCert.match(/.{1,64}/g).join('\n')}\n-----END CERTIFICATE-----`;
+    const x509 = new crypto.X509Certificate(pem);
+    const isOfficialUidai = /UIDAI|Unique Identification|CCA|National Informatics/i.test(`${x509.issuer} ${x509.subject}`);
+
+    const certInfo = {
+      subject: x509.subject,
+      issuer: x509.issuer,
+      validFrom: x509.validFrom,
+      validTo: x509.validTo,
+      fingerprint: x509.fingerprint256,
+      isOfficialUidai
+    };
+
+    // Extract raw SignedInfo string and signature bytes
+    const signedInfoText = signedInfoMatch[0];
+    const rawSig = signatureValueMatch[1].replace(/\s+/g, '');
+    const signatureBuffer = Buffer.from(rawSig, 'base64');
+
+    // Cryptographic signature verification using public key from certificate
+    let isCryptoValid = false;
+    try {
+      const publicKey = crypto.createPublicKey(x509);
+      const isSha1 = signedInfoText.includes('rsa-sha1');
+      const verifyAlgo = isSha1 ? 'RSA-SHA1' : 'RSA-SHA256';
+
+      const verifier = crypto.createVerify(verifyAlgo);
+      verifier.update(signedInfoText);
+      isCryptoValid = verifier.verify(publicKey, signatureBuffer);
+    } catch (verErr) {
+      console.warn('Cryptographic signature verification calculation error:', verErr.message);
+      isCryptoValid = false;
+    }
+
+    if (!isCryptoValid) {
+      return {
+        hasSignature: true,
+        verified: false,
+        algorithm: 'RSA-SHA256 (XML-DSig)',
+        certificate: certInfo,
+        error: 'Cryptographic signature verification failed: signature does not match SignedInfo digest'
+      };
     }
 
     return {
@@ -324,6 +358,23 @@ router.post('/kyc/offline-ekyc', authenticateJWT, async (req, res) => {
       photoUrl = saveAadhaarPhoto(extracted.photoBase64, userId);
     }
 
+    // Check cryptographic signature verification
+    const sigAudit = extracted.digitalSignatureAudit || {};
+    const isCryptographicallyVerified = Boolean(sigAudit.verified === true);
+    const isOfficialUidai = Boolean(sigAudit.isOfficialUidai === true);
+
+    // Reject outright if signature is explicitly tampered, forged, or corrupt
+    if (extracted.hasSignature && !isCryptographicallyVerified) {
+      return res.status(400).json({
+        error: 'Aadhaar document signature verification failed. The digital signature is forged, invalid, or corrupted.'
+      });
+    }
+
+    // Auto-approve ONLY if cryptographically valid and signed by official UIDAI PKI
+    const isFullyApproved = isCryptographicallyVerified && isOfficialUidai;
+    const status = isFullyApproved ? 'approved' : 'in_review';
+    const confidenceScore = isFullyApproved ? 99.9 : 45.0;
+
     const docUpdate = {
       user_id: userId,
       user_email: req.user.email || '',
@@ -341,10 +392,10 @@ router.post('/kyc/offline-ekyc', authenticateJWT, async (req, res) => {
       ocr_verified: true,
       has_digital_signature: extracted.hasSignature,
       digital_signature_audit: extracted.digitalSignatureAudit,
-      status: 'approved',
-      confidence_score: 99.9,
+      status,
+      confidence_score: confidenceScore,
       submitted_at: new Date(),
-      reviewed_at: new Date(),
+      reviewed_at: isFullyApproved ? new Date() : null,
       rejection_reason: null
     };
 
@@ -358,8 +409,8 @@ router.post('/kyc/offline-ekyc', authenticateJWT, async (req, res) => {
       { _id: userId },
       {
         $set: {
-          kyc_verified: true,
-          kyc_status: 'approved',
+          kyc_verified: isFullyApproved,
+          kyc_status: status,
           full_name: extracted.name,
           address: extracted.fullAddress,
           dob: extracted.dob,
@@ -370,11 +421,13 @@ router.post('/kyc/offline-ekyc', authenticateJWT, async (req, res) => {
 
     return res.status(200).json({
       success: true,
-      message: 'Aadhaar Paperless Offline e-KYC verified successfully! 100% UIDAI official data unlocked.',
-      status: 'approved',
-      confidence_score: 99.9,
+      message: isFullyApproved
+        ? 'Aadhaar Paperless Offline e-KYC verified successfully! 100% UIDAI official PKI data validated.'
+        : 'Aadhaar document uploaded and submitted for manual compliance review (official UIDAI PKI signature required for instant auto-approval).',
+      status,
+      confidence_score: confidenceScore,
       kyc: {
-        status: 'approved',
+        status,
         full_name: extracted.name,
         dob: extracted.dob,
         gender: extracted.gender,
@@ -398,12 +451,20 @@ router.post('/kyc/offline-ekyc', authenticateJWT, async (req, res) => {
 // ─────────────────────────────────────────────────────────────────────────────
 router.post('/kyc/sample-offline-ekyc', authenticateJWT, async (req, res) => {
   try {
+    // Issue 3: Prevent demo KYC endpoint from bypassing compliance on production accounts
+    const isDevAllowed = process.env.NODE_ENV !== 'production' || process.env.ALLOW_DEMO_KYC === 'true';
+    if (!isDevAllowed) {
+      return res.status(403).json({
+        error: 'Demo e-KYC endpoint is disabled in production compliance mode. Real user verification requires authentic UIDAI documents.'
+      });
+    }
+
     const userId = req.user.id;
     const db = getDb();
     const user = await db.collection('users').findOne({ _id: userId });
 
     const demoName = user?.name || user?.full_name || 'Ananya Verma';
-    const demoRef = `4090202610141200` + Math.floor(1000 + Math.random() * 9000);
+    const demoRef = `4090202610141200` + String(crypto.randomInt(1000, 10000));
     const maskedAadhaar = `XXXX-XXXX-${demoRef.slice(-4)}`;
     const fullAddress = 'Flat 402, Lotus Residency, 12th Main Road, Indiranagar, Bengaluru, Karnataka, PIN: 560038, India';
 
@@ -416,8 +477,9 @@ router.post('/kyc/sample-offline-ekyc', authenticateJWT, async (req, res) => {
       full_name: demoName,
       dob: '14-08-1996',
       gender: 'F',
-      id_type: 'Aadhaar Paperless Offline e-KYC',
-      kyc_mode: 'offline_xml',
+      id_type: 'Aadhaar Paperless Offline e-KYC (Demo Sandbox)',
+      kyc_mode: 'offline_xml_demo',
+      is_demo: true,
       masked_aadhaar: maskedAadhaar,
       reference_id: demoRef,
       address_line: fullAddress,
@@ -454,7 +516,7 @@ router.post('/kyc/sample-offline-ekyc', authenticateJWT, async (req, res) => {
 
     return res.status(200).json({
       success: true,
-      message: 'Demo Aadhaar Paperless Offline e-KYC loaded & approved successfully!',
+      message: 'Demo Aadhaar Paperless Offline e-KYC loaded & approved successfully (Sandbox Mode)!',
       status: 'approved',
       confidence_score: 99.9,
       kyc: {
@@ -466,7 +528,8 @@ router.post('/kyc/sample-offline-ekyc', authenticateJWT, async (req, res) => {
         address: fullAddress,
         reference_id: demoRef,
         photo_url: samplePhotoUrl,
-        has_digital_signature: true
+        has_digital_signature: true,
+        is_demo: true
       }
     });
   } catch (err) {
@@ -513,7 +576,8 @@ router.post('/kyc/send-otp', authenticateJWT, async (req, res) => {
       return res.status(429).json({ error: 'Too many OTP requests. Please wait before retrying.' });
     }
 
-    const otp = String(Math.floor(100000 + Math.random() * 900000));
+    // Issue 9: Cryptographically secure 6-digit OTP generation using crypto.randomInt
+    const otp = String(crypto.randomInt(100000, 1000000));
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
     await setKycOtp(db, userId, {
       otp,

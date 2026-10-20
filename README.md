@@ -82,17 +82,21 @@
 
 ### 1. Clone the Repository
 ```bash
-git clone https://github.com/Nayak17-07/RentAI.git
-cd RentAI
+git clone https://github.com/Nayak17-07/Rentora.git
+cd Rentora
 ```
 
 ### 2. Configure Environment Variables
-In the `server/` directory, ensure `.env` is configured:
+In the `server/` directory, create `.env` from `.env.example`:
+```bash
+cd server
+cp .env.example .env
+```
+Ensure your configuration keys are set:
 ```env
 PORT=8000
 MONGO_URI=mongodb://127.0.0.1:27017/rentora_db
-JWT_SECRET=your_super_secret_jwt_key
-SECRET_KEY=your_super_secret_jwt_key
+JWT_SECRET=your_cryptographically_secure_256_bit_jwt_secret
 ADMIN_PASSCODE=1707
 ```
 
@@ -100,7 +104,7 @@ ADMIN_PASSCODE=1707
 ```bash
 cd server
 npm install
-npm run dev
+npm run dev # Or: node index.js
 ```
 *Backend will be running on `http://127.0.0.1:8000` with WebSocket support.*
 
@@ -118,13 +122,13 @@ npm run dev
 ## 📂 Project Directory Structure
 
 ```
-RentAI/
+Rentora/
 ├── frontend/               # Vite + React 19 Client Application
 │   ├── src/
 │   │   ├── HomePage.jsx             # Catalog, Combos, Rent-vs-Buy Calculator
 │   │   ├── CartPage.jsx             # Dynamic Tenure Checkout & Escrow Deposits
 │   │   ├── MyRentalsPage.jsx        # Leases, Relocation, Service & Return Hub
-│   │   ├── EscrowLedgerModal.jsx    # RBI-Compliant Escrow Ledger & Damage Waiver
+│   │   ├── EscrowLedgerModal.jsx    # Escrow Ledger & Damage Waiver
 │   │   ├── RentToOwnModal.jsx       # Equity Buyout & Tenure Extension
 │   │   ├── KYCPage.jsx              # OCR Identity & Document Verification
 │   │   ├── AdminDashboard.jsx       # Operations, BI Analytics & Fleet Hub
@@ -144,7 +148,9 @@ RentAI/
 ## 🎓 Academic / SDC-II Capstone Project
 * **Project Name**: Rentora (AI-Enabled Smart Household Appliance Rental System)
 * **Curriculum**: Software Development Cell - II (SDC-II) Capstone Project
-* **Repository**: [https://github.com/Nayak17-07/RentAI](https://github.com/Nayak17-07/RentAI)
+* **Repository**: [https://github.com/Nayak17-07/Rentora](https://github.com/Nayak17-07/Rentora)
 
-> [!NOTE]
-> **Prototype Simulation Disclosure**: In accordance with academic capstone demonstration guidelines, fintech payment gateways, RBI escrow banking rails, IoT hardware sensor streams, and UIDAI database integrations operate via simulated software workflows and verifiable algorithmic models (such as Verhoeff mathematical checksums and simulated banking ledgers) rather than live production financial accounts.
+> [!IMPORTANT]
+> **Production Integration & Simulation Disclosure**:
+> - **Production-Ready & Fully Verifiable**: Core application workflows, including PBKDF2 password derivation, JWT sessions, MongoDB persistence, Verhoeff mathematical checksums, XML-DSig signature verification, LightGBM churn classification with TreeSHAP explanations, and TF-IDF cosine recommendations are fully implemented and execute against live data.
+> - **Simulated / Sandbox Modules**: In accordance with academic capstone prototyping guidelines, third-party payment rails (Razorpay sandbox with HMAC-SHA256 verification), RBI escrow custody banking accounts, physical IoT hardware telemetry streams, and UIDAI live Aadhaar server connectivity operate in software-simulated sandbox environments without requiring commercial banking licenses or live government server connectivity.

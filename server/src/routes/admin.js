@@ -158,10 +158,52 @@ router.patch(['/admin/users/', '/admin/users/:user_id/'], async (req, res) => {
       return res.status(400).json({ error: 'user_id is required' });
     }
 
+    const targetUser = await db.collection('users').findOne({ _id: targetId });
+    if (!targetUser) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
     const updates = {};
-    if (req.body.role !== undefined) updates.role = req.body.role;
-    if (req.body.phone_num !== undefined) updates.phone_num = req.body.phone_num;
-    if (req.body.is_active !== undefined) updates.is_active = Boolean(req.body.is_active);
+    if (req.body.role !== undefined) {
+      const ALLOWED_ROLES = ['customer', 'owner', 'admin'];
+      if (!ALLOWED_ROLES.includes(req.body.role)) {
+        return res.status(400).json({
+          error: `Invalid role: '${req.body.role}'. Allowed roles: ${ALLOWED_ROLES.join(', ')}`
+        });
+      }
+
+      // Prevent accidental removal/demotion of the sole remaining system administrator
+      if (targetUser.role === 'admin' && req.body.role !== 'admin') {
+        const activeAdminsCount = await db.collection('users').countDocuments({
+          role: 'admin',
+          is_active: { $ne: false }
+        });
+        if (activeAdminsCount <= 1) {
+          return res.status(400).json({
+            error: 'Security Guard: Cannot demote the sole remaining active system administrator.'
+          });
+        }
+      }
+      updates.role = req.body.role;
+    }
+
+    if (req.body.is_active !== undefined) {
+      const isActive = Boolean(req.body.is_active);
+      if (targetUser.role === 'admin' && !isActive) {
+        const activeAdminsCount = await db.collection('users').countDocuments({
+          role: 'admin',
+          is_active: { $ne: false }
+        });
+        if (activeAdminsCount <= 1) {
+          return res.status(400).json({
+            error: 'Security Guard: Cannot deactivate the sole remaining active system administrator.'
+          });
+        }
+      }
+      updates.is_active = isActive;
+    }
+
+    if (req.body.phone_num !== undefined) updates.phone_num = String(req.body.phone_num).trim();
 
     await db.collection('users').updateOne({ _id: targetId }, { $set: updates });
     return res.status(200).json({ success: 'User updated successfully' });
@@ -179,6 +221,20 @@ router.delete(['/admin/users/', '/admin/users/:user_id/'], async (req, res) => {
 
     if (!targetId) {
       return res.status(400).json({ error: 'user_id is required' });
+    }
+
+    const targetUser = await db.collection('users').findOne({ _id: targetId });
+    if (!targetUser) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    if (targetUser.role === 'admin') {
+      const adminCount = await db.collection('users').countDocuments({ role: 'admin' });
+      if (adminCount <= 1) {
+        return res.status(400).json({
+          error: 'Security Guard: Cannot delete the sole remaining system administrator.'
+        });
+      }
     }
 
     await db.collection('users').deleteOne({ _id: targetId });
@@ -201,26 +257,52 @@ router.get('/admin/rentals/', async (req, res) => {
     }
 
     const rentals = await db.collection('rentals').find(query).sort({ rented_at: -1 }).toArray();
-    const formatted = [];
 
-    for (const r of rentals) {
-      const user = await db.collection('users').findOne({ _id: r.user_id }, { projection: { password: 0 } });
-      const app = await db.collection('appliances').findOne({ appliance_id: r.appliance_id });
+    // Fix N+1 query problem: Batch-fetch all associated users and appliances in 2 bulk queries
+    const userIds = [...new Set(rentals.map(r => r.user_id).filter(Boolean))];
+    const appIds = [...new Set(rentals.flatMap(r => [r.appliance_id, r.appliance_ref_id]).filter(Boolean))];
 
-      formatted.push({
+    const usersList = await db.collection('users').find(
+      { _id: { $in: userIds } },
+      { projection: { password: 0 } }
+    ).toArray();
+
+    const appsList = await db.collection('appliances').find({
+      $or: [
+        { appliance_id: { $in: appIds } },
+        { _id: { $in: appIds } }
+      ]
+    }).toArray();
+
+    const userMap = new Map();
+    for (const u of usersList) {
+      userMap.set(String(u._id), u);
+    }
+
+    const appMap = new Map();
+    for (const a of appsList) {
+      if (a.appliance_id) appMap.set(String(a.appliance_id), a);
+      if (a._id) appMap.set(String(a._id), a);
+    }
+
+    const formatted = rentals.map(r => {
+      const user = userMap.get(String(r.user_id));
+      const app = appMap.get(String(r.appliance_id)) || (r.appliance_ref_id ? appMap.get(String(r.appliance_ref_id)) : null);
+
+      return {
         ...r,
         _id: String(r._id),
-        customer_name: user ? user.username || 'Customer' : 'Customer',
+        customer_name: user ? user.username || user.name || 'Customer' : 'Customer',
         customer_email: user ? user.email || '' : '',
         customer_phone: user ? user.phone_num || '' : '',
-        appliance_name: app ? app.rental_name || 'Appliance' : 'Appliance',
-        appliance_image: app ? app.image_url || '' : '',
-        appliance_category: app ? app.category_id || '' : '',
+        appliance_name: app ? app.rental_name || r.rental_name || 'Appliance' : (r.rental_name || 'Appliance'),
+        appliance_image: app ? app.image_url || r.image_url || '' : (r.image_url || ''),
+        appliance_category: app ? app.category_id || r.category_id || '' : (r.category_id || ''),
         rented_at: r.rented_at instanceof Date ? r.rented_at.toISOString() : r.rented_at,
         returned_at: r.returned_at instanceof Date ? r.returned_at.toISOString() : r.returned_at,
         next_billing_date: r.next_billing_date instanceof Date ? r.next_billing_date.toISOString() : r.next_billing_date
-      });
-    }
+      };
+    });
 
     return res.status(200).json(formatted);
   } catch (err) {
