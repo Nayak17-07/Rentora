@@ -167,7 +167,7 @@ router.get('/recommendations/', optionalAuth, async (req, res) => {
       candidatePool = await db.collection('appliances')
         .find({
           stock_quantity: { $gt: 0 },
-          available_cities: { $regex: requestedCity, $options: 'i' }
+          available_cities: { $regex: String(requestedCity).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), $options: 'i' }
         })
         .sort({ rating: -1, stock_quantity: -1 })
         .limit(40)

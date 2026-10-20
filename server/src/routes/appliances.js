@@ -35,11 +35,12 @@ router.get(['/appliances/', '/appliances/:appliance_id/'], async (req, res) => {
     }
 
     if (search) {
+      const escapedSearch = String(search).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
       query.$or = [
-        { rental_name: { $regex: search, $options: 'i' } },
-        { category_id: { $regex: search, $options: 'i' } },
-        { sub_category: { $regex: search, $options: 'i' } },
-        { description: { $regex: search, $options: 'i' } }
+        { rental_name: { $regex: escapedSearch, $options: 'i' } },
+        { category_id: { $regex: escapedSearch, $options: 'i' } },
+        { sub_category: { $regex: escapedSearch, $options: 'i' } },
+        { description: { $regex: escapedSearch, $options: 'i' } }
       ];
     }
 

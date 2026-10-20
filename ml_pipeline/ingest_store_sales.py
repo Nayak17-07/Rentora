@@ -54,6 +54,11 @@ def ingest_store_sales_data(limit_rows=None):
     total_raw_rows = len(df)
     print(f"Total rows read: {total_raw_rows:,}")
 
+    # Strip whitespace from column names and string cells
+    df.columns = df.columns.str.strip()
+    for col in df.select_dtypes(include='object').columns:
+        df[col] = df[col].astype(str).str.strip()
+
     # 1. Filter for relevant rental domains
     relevant_cats = ["Electric Appliances", "Furniture"]
     df_filtered = df[df["Category of Goods"].isin(relevant_cats)].copy()
@@ -176,7 +181,7 @@ def ingest_store_sales_data(limit_rows=None):
         "city_tiers": city_tiers,
         "customer_segments": customer_segments,
         "recent_transactions": sample_records,
-        "last_updated": datetime.datetime.utcnow().isoformat()
+        "last_updated": datetime.datetime.now(datetime.timezone.utc).isoformat()
     }
 
     db.sales_analytics.update_one(

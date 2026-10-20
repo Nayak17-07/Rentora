@@ -20,10 +20,11 @@ router.post('/auth/send-signup-otp/', otpLimiter, async (req, res) => {
 
     const cleanEmail = email.toLowerCase().trim();
     const cleanUsername = username.trim();
+    const escapedUsername = cleanUsername.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
     // Check if username already exists
     const existingUser = await db.collection('users').findOne({ 
-      username: { $regex: new RegExp(`^${cleanUsername}$`, 'i') } 
+      username: { $regex: new RegExp(`^${escapedUsername}$`, 'i') } 
     });
     if (existingUser) {
       return res.status(400).json({ error: 'Username is already taken. Please choose another.' });

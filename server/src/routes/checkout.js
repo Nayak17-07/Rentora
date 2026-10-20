@@ -303,9 +303,12 @@ router.post('/checkout/', authenticateJWT, async (req, res) => {
 
     const taxAmount = Math.round(totalRent * 0.18 * 100) / 100;
     
-    // Atomic loyalty points redemption to prevent race conditions
+    // Atomic loyalty points redemption to prevent race conditions & over-deduction
     let pointsDiscount = 0;
-    const redeemPoints = parseInt(req.body?.redeem_points || 0, 10);
+    const preDiscountTotal = Math.round((totalRent + totalDeposit + taxAmount) * 100) / 100;
+    const requestedPoints = Math.max(0, parseInt(req.body?.redeem_points || 0, 10) || 0);
+    const redeemPoints = Math.min(requestedPoints, Math.floor(preDiscountTotal));
+
     if (redeemPoints > 0) {
       const deductionRes = await db.collection('users').updateOne(
         { _id: userId, loyalty_points: { $gte: redeemPoints } },
@@ -316,7 +319,7 @@ router.post('/checkout/', authenticateJWT, async (req, res) => {
       }
     }
     
-    let totalPaid = Math.round((totalRent + totalDeposit + taxAmount - pointsDiscount) * 100) / 100;
+    let totalPaid = Math.round((preDiscountTotal - pointsDiscount) * 100) / 100;
     if (totalPaid < 0) totalPaid = 0;
 
     const isCod = ['CASH_ON_DELIVERY', 'COD', 'DOORSTEP'].includes(payment_method);

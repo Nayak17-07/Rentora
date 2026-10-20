@@ -89,10 +89,11 @@ router.get('/inventory/units', async (req, res) => {
     if (depot && depot !== 'all') query.depot_location = depot;
     if (grade && grade !== 'all') query.condition_grade = grade;
     if (search) {
+      const escapedSearch = String(search).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
       query.$or = [
-        { serial_number: { $regex: search, $options: 'i' } },
-        { rental_name: { $regex: search, $options: 'i' } },
-        { rfid_tag: { $regex: search, $options: 'i' } }
+        { serial_number: { $regex: escapedSearch, $options: 'i' } },
+        { rental_name: { $regex: escapedSearch, $options: 'i' } },
+        { rfid_tag: { $regex: escapedSearch, $options: 'i' } }
       ];
     }
 

@@ -171,9 +171,16 @@ router.patch('/rentals/', authenticateJWT, async (req, res) => {
         return res.status(400).json({ error: 'new_appliance_id is required for swap' });
       }
 
-      const newApp = await db.collection('appliances').findOne({ appliance_id: new_appliance_id });
+      const newApp = await db.collection('appliances').findOne({
+        $or: [{ appliance_id: new_appliance_id }, { _id: new_appliance_id }]
+      });
       if (!newApp) {
         return res.status(404).json({ error: 'Replacement appliance not found' });
+      }
+
+      const availableStock = parseInt(newApp.stock_quantity !== undefined ? newApp.stock_quantity : 1, 10);
+      if (availableStock <= 0) {
+        return res.status(400).json({ error: `Replacement appliance "${newApp.rental_name}" is currently out of stock.` });
       }
 
       const swapTicket = `SWAP_${crypto.randomBytes(4).toString('hex').toUpperCase()}`;
@@ -207,7 +214,13 @@ router.patch('/rentals/', authenticateJWT, async (req, res) => {
 
     // Action 2: Rent-to-Own Buyout (Amortization & Ownership Transfer)
     if (action === 'buyout') {
-      const app = await db.collection('appliances').findOne({ appliance_id: rental.appliance_id });
+      const app = await db.collection('appliances').findOne({
+        $or: [
+          { appliance_id: rental.appliance_id },
+          { _id: rental.appliance_id },
+          ...(rental.appliance_ref_id ? [{ _id: rental.appliance_ref_id }] : [])
+        ]
+      });
       const monthlyRent = parseFloat(rental.monthly_rent || (app ? app.monthly_price : 500));
       const mrp = parseFloat(app?.original_price || app?.purchase_price || (monthlyRent * 14));
       
@@ -304,7 +317,13 @@ router.patch('/rentals/', authenticateJWT, async (req, res) => {
         return res.status(400).json({ error: 'Valid new_tenure (6 or 12) is required' });
       }
 
-      const app = await db.collection('appliances').findOne({ appliance_id: rental.appliance_id });
+      const app = await db.collection('appliances').findOne({
+        $or: [
+          { appliance_id: rental.appliance_id },
+          { _id: rental.appliance_id },
+          ...(rental.appliance_ref_id ? [{ _id: rental.appliance_ref_id }] : [])
+        ]
+      });
       const baseMonthly = app?.pricing?.['3'] || app?.monthly_price || rental.monthly_rent || 500;
       
       let newRent = baseMonthly;
@@ -351,11 +370,10 @@ router.patch('/rentals/', authenticateJWT, async (req, res) => {
       });
     }
 
-    // Action 4: Module 6 Return Management (Return Request, Damage Report & Fine Calculation)
     const damageLevel = req.body.damage_level || 'NONE'; // NONE | MINOR | MODERATE | SEVERE
     const damageDescription = req.body.damage_description || '';
-    const lateDays = parseInt(req.body.late_days || 0, 10);
-    const depositAmount = parseFloat(rental.security_deposit || 0.0);
+    const safeLateDays = Math.max(0, parseInt(req.body.late_days || 0, 10) || 0);
+    const depositAmount = Math.max(0, parseFloat(rental.security_deposit || 0.0) || 0);
 
     let damageFine = 0.0;
     let waiverApplied = false;
@@ -364,13 +382,13 @@ router.patch('/rentals/', authenticateJWT, async (req, res) => {
       waiverApplied = true;
       damageFine = 0.0;
     } else if (damageLevel === 'SEVERE') {
-      const assessedCost = parseFloat(req.body.assessed_damage_cost || 1000.0);
+      const assessedCost = Math.max(0, parseFloat(req.body.assessed_damage_cost || 1000.0) || 0);
       damageFine = Math.min(depositAmount, assessedCost);
     }
 
-    const lateFine = lateDays * 50.0; // Rs. 50/day late penalty
+    const lateFine = safeLateDays * 50.0; // Rs. 50/day late penalty
     const totalFine = damageFine + lateFine;
-    const depositRefunded = Math.max(0.0, Math.round((depositAmount - totalFine) * 100) / 100);
+    const depositRefunded = Math.max(0.0, Math.min(depositAmount, Math.round((depositAmount - totalFine) * 100) / 100));
 
     const refundTxn = `REF_${crypto.randomBytes(5).toString('hex').toUpperCase()}`;
 
@@ -390,7 +408,7 @@ router.patch('/rentals/', authenticateJWT, async (req, res) => {
         damage_fine: damageFine
       },
       fine_calculation: {
-        late_days: lateDays,
+        late_days: safeLateDays,
         late_fine: lateFine,
         damage_fine: damageFine,
         total_fine: totalFine
@@ -489,7 +507,8 @@ router.patch('/rentals/:rental_id/reschedule', authenticateJWT, async (req, res)
       return res.status(400).json({ error: 'new_slot is required' });
     }
 
-    const rental = await db.collection('rentals').findOne({ _id: rentalId, user_id: userId });
+    const query = (req.user.role === 'admin') ? { _id: rentalId } : { _id: rentalId, user_id: userId };
+    const rental = await db.collection('rentals').findOne(query);
     if (!rental) {
       return res.status(404).json({ error: 'Rental subscription not found' });
     }
@@ -565,9 +584,14 @@ router.post('/rentals/:rental_id/confirm-delivery/', authenticateJWT, async (req
       return res.status(400).json({ error: 'Delivery OTP has expired. Please request a new delivery dispatch.' });
     }
 
-    // Timing-safe comparison of OTP
+    // Timing-safe comparison of OTP (guard against empty string matching)
     const expectedOtp = String(tracking.delivery_otp || '').trim();
     const inputOtp = String(otp).trim();
+
+    if (!expectedOtp || expectedOtp.length < 4 || !inputOtp || inputOtp.length < 4) {
+      return res.status(400).json({ error: 'A valid 4-digit delivery OTP is required and must be active on this order.' });
+    }
+
     const match = expectedOtp.length === inputOtp.length &&
       crypto.timingSafeEqual(Buffer.from(inputOtp), Buffer.from(expectedOtp));
 

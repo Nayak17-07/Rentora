@@ -71,13 +71,19 @@ router.post('/cart/', authenticateJWT, async (req, res) => {
         $or: [{ appliance_id }, { _id: appliance_id }]
       });
       if (!existingApp) {
+        const m_price = Math.max(500, Math.min(50000, parseFloat(bundle_data.monthly_price) || 1499));
         const bundleDoc = {
           _id: crypto.randomUUID(),
           appliance_id,
           rental_name: String(bundle_data.rental_name || 'Curated Room Combo').slice(0, 100),
           category_id: String(bundle_data.category_id || 'Packages').slice(0, 50),
           sub_category: 'Curated Room Package',
-          monthly_price: Math.max(500, Math.min(50000, parseFloat(bundle_data.monthly_price) || 1499)),
+          monthly_price: m_price,
+          pricing: {
+            '3': m_price,
+            '6': Math.round(m_price * 0.9),
+            '12': Math.round(m_price * 0.8)
+          },
           security_deposit: Math.max(0, Math.min(50000, parseFloat(bundle_data.security_deposit) || 0)),
           stock_quantity: 50,
           available_cities: ['Hyderabad', 'Bangalore', 'Mumbai', 'Delhi', 'Pune'],
