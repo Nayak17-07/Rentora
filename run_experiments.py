@@ -408,7 +408,7 @@ def generate_and_save_figures(churn_res, output_dir):
     fig, ax = plt.subplots(figsize=(5.2, 5.8), dpi=300)
     shap.plots.beeswarm(shap_values, max_display=15, show=False)
     plt.title("TreeSHAP Feature Attributions (100 Test Samples)", fontsize=10, pad=10)
-    plt.xlabel("Shapley value (impact on churn probability)")
+    plt.xlabel("Shapley value (log-odds margin contribution)")
     plt.tight_layout()
     fig4_path = os.path.join(fig_dir, "fig4_shap_summary.png")
     plt.savefig(fig4_path, dpi=300, bbox_inches='tight')
@@ -432,11 +432,14 @@ def generate_and_save_figures(churn_res, output_dir):
     sorted_features = [f"{feature_names[i]} = {cust_data.iloc[i]}" for i in sort_idx][::-1]
     sorted_vals = [vals[i] for i in sort_idx][::-1]
 
-    fig, ax = plt.subplots(figsize=(5.2, 5.0), dpi=300)
+    fig, ax = plt.subplots(figsize=(5.4, 5.0), dpi=300)
     colors = ['#c85a17' if v > 0 else '#2b5c8f' for v in sorted_vals]
     ax.barh(sorted_features, sorted_vals, color=colors, height=0.65)
     ax.axvline(0, color="black", lw=1)
-    ax.set_xlabel(f"Shapley value (base {local_shap.base_values[0]:.2f}, output {lgb_prob[highest_risk_idx]:.2f})")
+    base_val = float(local_shap.base_values[0])
+    out_val = base_val + float(np.sum(vals))
+    prob_val = float(lgb_prob[highest_risk_idx])
+    ax.set_xlabel(f"Shapley log-odds contribution (base: {base_val:.2f}, margin: {out_val:.2f}, prob: {prob_val:.3f})")
     ax.set_title("LightGBM Local Risk Drivers (Highest-Risk Tenant)", fontsize=10, pad=10)
     ax.grid(True, ls="--", alpha=0.3, axis='x')
     plt.tight_layout()

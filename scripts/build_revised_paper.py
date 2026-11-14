@@ -464,39 +464,39 @@ def build_manuscript(output_docx_path):
     p_t3_lbl.alignment = WD_ALIGN_PARAGRAPH.CENTER
     p_t3_lbl.paragraph_format.space_before = Pt(6)
     p_t3_lbl.paragraph_format.space_after = Pt(2)
-    r = p_t3_lbl.add_run("TABLE III\nDETERMINISTIC MAPPING: BANK BENCHMARK TO RENTAL OPERATIONAL FEATURES")
+    r = p_t3_lbl.add_run("TABLE III\nFEATURE ENGINEERING SPECIFICATION & EMPIRICAL BOUNDS (N = 10,000)")
     r.font.name = "Times New Roman"
     r.font.size = Pt(8.5)
     r.font.bold = True
 
     t3_data = [
-        ["Rental Behavioral Feature", "Deterministic Source Derivation Rule", "Operational Domain Meaning"],
-        ["tenure_months", "Tenure (years) × 12 + (Age mod 12); Range: 1–120", "Duration of customer subscription tenure"],
-        ["monthly_spend", "(EstimatedSalary ÷ 40) + (Balance > 0) × 350 (₹)", "Estimated recurring monthly subscription fees"],
-        ["active_rentals", "NumOfProducts clipped to range [1, 5]", "Count of active concurrent leased appliances"],
-        ["credit_score", "CreditScore from source record; Range: 350–850", "Financial credit standing indicator"],
-        ["customer_age", "Age from source record; Range: 18–92", "Tenant demographic age indicator"],
-        ["is_active_member", "IsActiveMember binary flag from source", "Customer platform engagement loyalty status"],
-        ["late_payments", "((850 - CreditScore)/85) + (1 - IsActiveMember)*1.5; [0, 5]", "Frequency of delayed invoice settlements"],
-        ["early_returns", "(1 - IsActiveMember)*(Tenure <= 2) + (CreditScore < 520); [0, 3]", "History of premature lease contract terminations"],
-        ["cart_abandonment", "(1 - IsActiveMember)*2 + (NumOfProducts == 1)*2; [0, 8]", "Dormant items added to cart without checkout"],
-        ["days_inactive", "(1 - IsActiveMember)*35 + (10 - Tenure)*2; [0, 90]", "Elapsed days since last authenticated session"],
-        ["avg_rating", "IsActiveMember*0.8 + (CreditScore/250) + 1.2; [1, 5]", "Customer satisfaction feedback rating score"],
-        ["spend_per_rental", "monthly_spend / (active_rentals + 0.1)", "Average monthly revenue ticket per active machine"],
-        ["delinquency_rate", "late_payments / (active_rentals + 1.0)", "Ratio of overdue payments to active subscriptions"],
-        ["inactivity_rate", "days_inactive / (tenure_months × 30 + 1.0)", "Proportion of account tenure spent in dormancy"],
-        ["engagement_score", "avg_rating × (1.0 - min(1.0, days_inactive / 90.0))", "Composite satisfaction and activity index"]
+        ["Rental Behavioral Feature", "Empirical Range [Min, Max]", "Deterministic Derivation Formula", "Operational Meaning & Data Status"],
+        ["tenure_months", "1 – 120 mo", "(raw['Tenure'] * 12 + (raw['Age'] % 12)).clip(1, 120)", "Account subscription duration; Proxy"],
+        ["monthly_spend", "₹2.25 – ₹5,349.27", "round(raw['EstimatedSalary']/40 + (raw['Balance']>0)*350, 2)", "Estimated recurring monthly rent; Proxy"],
+        ["active_rentals", "1 – 4 units", "raw['NumOfProducts'].clip(1, 5) [source max is 4]", "Concurrent active leased machines; Proxy"],
+        ["credit_score", "350 – 850", "raw['CreditScore']", "Financial credit standing indicator; Proxy"],
+        ["customer_age", "18 – 92 yrs", "raw['Age']", "Tenant demographic age indicator; Proxy"],
+        ["is_active_member", "{0, 1}", "raw['IsActiveMember']", "Platform engagement loyalty status; Proxy"],
+        ["late_payments", "0 – 5 events", "round(((850 - CreditScore)/85) + (1-IsActive)*1.5 + (Bal==0)*0.5).clip(0, 5)", "Overdue payment delinquency count; Heuristic"],
+        ["early_returns", "0 – 2 events", "(1 - IsActive)*(Tenure <= 2) + (CreditScore < 520)", "Premature lease termination history; Heuristic"],
+        ["cart_abandonment", "{0, 2, 4} events", "(1 - IsActiveMember)*2 + (NumOfProducts == 1)*2", "Dormant cart sessions without checkout; Heuristic"],
+        ["days_inactive", "0.0 – 55.0 days", "round((1 - IsActiveMember)*35 + (10 - Tenure)*2, 1).clip(0, 90)", "Dormancy since last authenticated session; Heuristic"],
+        ["avg_rating", "2.60 – 5.00 ★", "round(IsActiveMember*0.8 + (CreditScore / 250) + 1.2, 2).clip(1, 5)", "Customer satisfaction feedback rating; Heuristic"],
+        ["spend_per_rental", "₹1.07 – ₹4,862.97", "round(monthly_spend / (active_rentals + 0.1), 2)", "Monthly revenue ticket per leased machine; Derived"],
+        ["delinquency_rate", "0.00 – 2.50", "round(late_payments / (active_rentals + 1.0), 4)", "Ratio of overdue payments to active leases; Derived"],
+        ["inactivity_rate", "0.00 – 1.77", "round(days_inactive / (tenure_months * 30 + 1.0), 4)", "Tenure proportion spent in dormancy; Derived"],
+        ["engagement_score", "1.011 – 5.000", "round(avg_rating * (1.0 - min(1.0, days_inactive / 90.0)), 3)", "Composite satisfaction and activity index; Derived"]
     ]
 
-    t3 = doc.add_table(rows=len(t3_data), cols=3)
+    t3 = doc.add_table(rows=len(t3_data), cols=4)
     t3.alignment = WD_TABLE_ALIGNMENT.CENTER
     t3.autofit = False
     for r_idx, row in enumerate(t3_data):
         for c_idx, val in enumerate(row):
             cell = t3.cell(r_idx, c_idx)
-            widths = [Inches(1.8), Inches(3.0), Inches(2.2)]
+            widths = [Inches(1.5), Inches(1.2), Inches(2.7), Inches(1.8)]
             cell.width = widths[c_idx]
-            set_cell_margins(cell, 35, 35, 50, 50)
+            set_cell_margins(cell, 35, 35, 45, 45)
             p = cell.paragraphs[0]
             p.paragraph_format.space_after = Pt(0)
             p.paragraph_format.line_spacing = 1.05
@@ -504,7 +504,7 @@ def build_manuscript(output_docx_path):
                 set_cell_background(cell, "1B365D")
                 r = p.add_run(val)
                 r.font.name = "Times New Roman"
-                r.font.size = Pt(8)
+                r.font.size = Pt(7.5)
                 r.font.bold = True
                 r.font.color.rgb = RGBColor(255, 255, 255)
             else:
@@ -512,7 +512,7 @@ def build_manuscript(output_docx_path):
                 set_cell_background(cell, bg)
                 r = p.add_run(val)
                 r.font.name = "Times New Roman"
-                r.font.size = Pt(7.5)
+                r.font.size = Pt(7.0)
                 if c_idx == 0:
                     r.font.bold = True
     set_table_borders(t3)
@@ -565,23 +565,25 @@ def build_manuscript(output_docx_path):
     r_eq3.font.bold = True
 
     add_body_p(
-        "where q_j represents the Bayesian smoothed rating shrunk toward platform prior C = 4.30 across review count v: q_j = (v·r + 12 × 4.30)/(v + 12); e_j denotes the eco-tier energy bonus "
-        "(0.15 for >= 4-star inverter appliances, 0.05 otherwise); and π_j represents Gaussian budget affinity: π_j = exp(-0.5 ((p_j - B_u) / σ)^2), where B_u is the tenant's historical median monthly spend."
+        "where q_j represents the Bayesian smoothed rating shrunk toward platform prior C = 4.30 across review count v_j: q_j = (v_j · r_j + 12 × 4.30)/(v_j + 12); e_j denotes the eco-tier energy bonus "
+        "(0.15 for >= 4-star inverter appliances, 0.05 otherwise); and π_j represents Gaussian budget affinity: π_j = exp(-0.5 ((p_j - B_u) / σ_B)^2), where B_u is the tenant's historical median monthly spend "
+        "(default ₹1,200 when no prior leases exist) and budget dispersion is bounded by σ_B = max(0.8 B_u, 600.0)."
     )
 
     add_subsec_heading("B. Churn Risk Machine Learning Formulation")
     add_body_p(
-        "Binary churn status is modeled via LightGBM [6], an ensemble of M decision trees whose aggregated leaf values parameterize the Bernoulli churn probability:"
+        "Binary churn status is modeled via LightGBM [6], an ensemble of M decision trees whose aggregated continuous leaf values parameterize the Bernoulli churn probability:"
     )
     p_eq4 = doc.add_paragraph()
     p_eq4.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    r_eq4 = p_eq4.add_run("P(y = 1 | x) = 1 / (1 + exp(-sum_{m=1}^M f_m(x)))              (4)")
+    r_eq4 = p_eq4.add_run("P(y = 1 | x) = σ(sum_{m=1}^M f_m(x)) = 1 / (1 + exp(-sum_{m=1}^M f_m(x)))     (4)")
     r_eq4.font.name = "Times New Roman"
     r_eq4.font.size = Pt(9)
     r_eq4.font.bold = True
 
     add_body_p(
-        "The model is parameterized with 300 estimators, maximum tree depth 4, 20 leaves, learning rate 0.04, feature subsampling ratio 0.85, row subsampling 0.85, "
+        "where f_m(x) = η · ŷ_{m,leaf}(x) represents the continuous leaf prediction of the m-th decision tree scaled by shrinkage factor η = 0.04, and sum_{m=1}^M f_m(x) ∈ ℝ "
+        "denotes the cumulative log-odds margin. The model is parameterized with M = 300 estimators, maximum tree depth 4, 20 leaves, feature subsampling ratio 0.85, row subsampling 0.85, "
         "class re-weighting scale_pos_weight = 1.4, and L1/L2 penalties of 0.1 each. A Random Forest [7] with 250 trees of depth 12 serves as the bagging benchmark."
     )
 
@@ -718,9 +720,10 @@ def build_manuscript(output_docx_path):
 
     add_body_p(
         "Stratified 5-fold cross-validation (Table V) confirms that LightGBM's advantage is stable across random fold partitions: ROC-AUC 0.833 ± 0.012 vs. 0.824 ± 0.011. "
-        "Figure 3 details the confusion matrix: at threshold 0.50, LightGBM successfully catches 202 of 407 churners with only 76 false alarms among 1,593 retained customers. "
-        "In enterprise rental operations where the cost of proactive retention outreach (an automated 15% discount perk) is negligible compared to losing customer LTV, "
-        "operators can shift the operational threshold to 0.32, boosting recall to 83.8% at the expense of higher false alarm volume."
+        "Figure 3 details the confusion matrix at the standard 0.50 threshold: LightGBM successfully catches 202 of 407 churners with only 76 false alarms among 1,593 retained customers. "
+        "In enterprise rental operations where the cost of proactive retention outreach (e.g. an automated 15% retention discount) is negligible compared to losing subscriber lifetime value (LTV), "
+        "operators can adjust the decision threshold to 0.32. At threshold 0.32, LightGBM recall increases from 49.6% to 65.6% (267 of 407 churners caught, a 32% increase in detected attrition) "
+        "with precision of 53.1% (236 false alarms), F1-score of 0.587, and peak F2-score of 0.627 (Confusion Matrix: TN=1357, FP=236, FN=140, TP=267)."
     )
 
     # Fig 3 Image
@@ -729,14 +732,15 @@ def build_manuscript(output_docx_path):
     img3_path = os.path.join(fig_dir, "fig3_confusion_matrix.png")
     if os.path.exists(img3_path):
         p_img3.add_run().add_picture(img3_path, width=Inches(2.8))
-        add_fig_caption(3, "LightGBM confusion matrix on the held-out test split (202 churners caught, 76 false alarms).")
+        add_fig_caption(3, "LightGBM confusion matrix on the held-out test split at standard threshold 0.50 (202 churners caught, 76 false alarms).")
 
     add_subsec_heading("B. Feature Importance and Explainable Risk Drivers")
     add_body_p(
-        "Global feature attribution computed via TreeSHAP (Figure 4) ranks customer_age (mean |phi| = 0.80) and active_rentals (mean |phi| = 0.63) as the dominant drivers of attrition risk, "
-        "followed by cart_abandonment (0.19), engagement_score (0.16), avg_rating (0.10), and monthly_spend (0.10). Crucially, this ranking reflects the mathematical structure of the underlying "
-        "banking proxy corpus, where age and account product counts exhibit high variance. Operators must recognize that while demographic age cannot be modified, secondary behavioral drivers "
-        "(cart abandonment, payment delinquency, feedback rating) represent concrete operational levers for retention intervention."
+        "Global feature attribution computed via TreeSHAP (Figure 4) ranks customer_age (mean |phi| = 0.80 log-odds) and active_rentals (mean |phi| = 0.63 log-odds) as the dominant drivers "
+        "of attrition risk in margin space, followed by cart_abandonment (0.19), engagement_score (0.16), avg_rating (0.10), and monthly_spend (0.10). "
+        "Crucially, this ranking reflects the mathematical structure of the underlying banking proxy corpus, where age and account product counts exhibit high variance. "
+        "This ranking must not be interpreted as an empirical discovery regarding home appliance renters. However, secondary operational drivers (cart abandonment, payment delinquency, feedback rating) "
+        "represent concrete, actionable operational levers for retention intervention."
     )
 
     # Fig 4 Image
@@ -745,12 +749,12 @@ def build_manuscript(output_docx_path):
     img4_path = os.path.join(fig_dir, "fig4_shap_summary.png")
     if os.path.exists(img4_path):
         p_img4.add_run().add_picture(img4_path, width=Inches(4.2))
-        add_fig_caption(4, "TreeSHAP summary plot illustrating the global distribution of feature impact on churn probability across sampled test instances.")
+        add_fig_caption(4, "TreeSHAP summary plot illustrating the global distribution of feature impact on log-odds margin across 100 sampled test instances.")
 
     add_body_p(
-        "Figure 5 displays the local waterfall explanation for the highest-risk tenant in the test split (churn probability: 0.994). Having 4 active rentals (+4.77 in log-odds) "
-        "combined with older age (+1.04) and credit score (+0.39) drives the tenant into critical attrition risk. Providing this exact breakdown in the administrator dashboard "
-        "allows staff to verify the root cause before dispatching technicians or adjusting lease commitments."
+        "Figure 5 displays the local waterfall explanation for the highest-risk tenant in the test split (base log-odds: -1.52, cumulative margin: +5.19, churn probability: 0.994). "
+        "Holding 4 active rentals (+4.77 log-odds) combined with older age (+1.04 log-odds) and credit score (+0.39 log-odds) drives the tenant into critical attrition risk, "
+        "counteracted only by long tenure (-1.36 log-odds). Providing this exact decomposition in the administrator dashboard allows staff to verify the root cause before dispatching technicians or adjusting lease commitments."
     )
 
     # Fig 5 Image
@@ -759,7 +763,7 @@ def build_manuscript(output_docx_path):
     img5_path = os.path.join(fig_dir, "fig5_local_shap_waterfall.png")
     if os.path.exists(img5_path):
         p_img5.add_run().add_picture(img5_path, width=Inches(4.2))
-        add_fig_caption(5, "Local TreeSHAP explanation for the highest-risk tenant, decomposing log-odds risk into exact feature contributions.")
+        add_fig_caption(5, "Local TreeSHAP explanation for the highest-risk tenant, decomposing log-odds risk (base log-odds: -1.52, margin: +5.19, prob: 0.994) into exact feature contributions.")
 
     add_subsec_heading("C. Recommender Catalog Coherence Evaluation")
     add_body_p(

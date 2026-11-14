@@ -74,3 +74,4 @@ All figures were generated at 300 DPI publication resolution:
 - **Figure 3:** `experiments/figures/fig3_confusion_matrix.png` (LightGBM confusion matrix heatmap).
 - **Figure 4:** `experiments/figures/fig4_shap_summary.png` (TreeSHAP global beeswarm plot of feature impact).
 - **Figure 5:** `experiments/figures/fig5_local_shap_waterfall.png` (TreeSHAP local feature attribution bar plot for highest-risk tenant).
+

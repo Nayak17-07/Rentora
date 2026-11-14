@@ -1,6 +1,6 @@
 {
   "seed": 42,
-  "timestamp": "2026-11-14T10:48:05Z",
+  "timestamp": "2026-11-14T11:09:16Z",
   "table_iv_test_split": {
     "random_forest": {
       "accuracy": 0.8515,
@@ -9,7 +9,7 @@
       "f1": 0.5322834645669291,
       "roc_auc": 0.8191658530641581,
       "pr_auc": 0.6428605327330449,
-      "train_time_sec": 1.3981716632843018
+      "train_time_sec": 1.2139947414398193
     },
     "lightgbm": {
       "accuracy": 0.8595,
@@ -18,7 +18,7 @@
       "f1": 0.5897810218978102,
       "roc_auc": 0.8329323159831634,
       "pr_auc": 0.6662327050364837,
-      "train_time_sec": 0.6212136745452881
+      "train_time_sec": 0.5904161930084229
     }
   },
   "table_v_cross_validation": {

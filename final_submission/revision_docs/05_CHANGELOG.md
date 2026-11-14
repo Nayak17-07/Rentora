@@ -24,3 +24,4 @@
 | **Section IX (Conclusion)** | Generic repetitive summary. | Concise, forward-looking roadmap: collecting empirical rental telemetry, live A/B testing of recommender bundles, and measuring retention lift from XAI-guided support outreach. | Clear roadmap for future work. |
 | **Reproducibility** | Cited nonexistent `run_experiments.py`. | Created standalone, deterministic `run_experiments.py` at repository root generating all tables and figures with `--seed 42`. | Single-command verifiable reproduction. |
 | **References** | Ref [3] had placeholder `[venue and year to be confirmed]`. | Formalized Ref [3] as the baseline digital appliance rental framework technical specification. Verified all 16 references. | Clean bibliographic record. |
+
