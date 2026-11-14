@@ -1,0 +1,68 @@
+{
+  "seed": 42,
+  "timestamp": "2026-11-14T10:48:05Z",
+  "table_iv_test_split": {
+    "random_forest": {
+      "accuracy": 0.8515,
+      "precision": 0.7412280701754386,
+      "recall": 0.4152334152334152,
+      "f1": 0.5322834645669291,
+      "roc_auc": 0.8191658530641581,
+      "pr_auc": 0.6428605327330449,
+      "train_time_sec": 1.3981716632843018
+    },
+    "lightgbm": {
+      "accuracy": 0.8595,
+      "precision": 0.7266187050359713,
+      "recall": 0.4963144963144963,
+      "f1": 0.5897810218978102,
+      "roc_auc": 0.8329323159831634,
+      "pr_auc": 0.6662327050364837,
+      "train_time_sec": 0.6212136745452881
+    }
+  },
+  "table_v_cross_validation": {
+    "rf": {
+      "roc_mean": 0.8235826768353718,
+      "roc_std": 0.011178885198464028,
+      "pr_mean": 0.6427550417021448,
+      "pr_std": 0.018386760754317912,
+      "f1_mean": 0.5346320639625832,
+      "f1_std": 0.012238053361554629
+    },
+    "lgbm": {
+      "roc_mean": 0.8329751800403052,
+      "roc_std": 0.011563004750393131,
+      "pr_mean": 0.6605540446216394,
+      "pr_std": 0.01830665285412237,
+      "f1_mean": 0.5724196587813777,
+      "f1_std": 0.01730715189852166
+    }
+  },
+  "table_vi_catalog_recommender": {
+    "sub_category": {
+      "n": 162,
+      "classes": 41,
+      "p_at_k": 0.5930555555555556,
+      "random": 0.042443064182194616,
+      "hit_at_k": 0.9652777777777778,
+      "r_at_k": 0.6593749999999999,
+      "coverage": 0.9629629629629629
+    },
+    "category": {
+      "n": 164,
+      "classes": 12,
+      "p_at_k": 0.6036585365853658,
+      "random": 0.20694298967529556,
+      "hit_at_k": 0.9207317073170732,
+      "r_at_k": 0.633130081300813,
+      "coverage": 0.9695121951219512
+    }
+  },
+  "figures": {
+    "fig2": "C:\\Users\\naik1\\Desktop\\Rentora\\experiments\\figures\\fig2_roc_pr_curves.png",
+    "fig3": "C:\\Users\\naik1\\Desktop\\Rentora\\experiments\\figures\\fig3_confusion_matrix.png",
+    "fig4": "C:\\Users\\naik1\\Desktop\\Rentora\\experiments\\figures\\fig4_shap_summary.png",
+    "fig5": "C:\\Users\\naik1\\Desktop\\Rentora\\experiments\\figures\\fig5_local_shap_waterfall.png"
+  }
+}
