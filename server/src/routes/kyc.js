@@ -91,11 +91,19 @@ function saveAadhaarPhoto(base64Raw, userId) {
 // UIDAI OFFLINE e-KYC XML PARSER
 // ─────────────────────────────────────────────────────────────────────────────
 function parseUidaiXml(xmlString) {
+  if (!xmlString || typeof xmlString !== 'string') {
+    throw new Error('Invalid XML input: content is empty or malformed.');
+  }
+  if (xmlString.length > 2 * 1024 * 1024) {
+    throw new Error('XML file exceeds safety processing limit of 2MB.');
+  }
+
   const parser = new XMLParser({
     ignoreAttributes: false,
     attributeNamePrefix: '@_',
     parseAttributeValue: false,
-    trimValues: true
+    trimValues: true,
+    processEntities: false
   });
   const parsed = parser.parse(xmlString);
   const root = parsed.OfflinePaperlessKyc ||
@@ -152,11 +160,38 @@ function parseUidaiXml(xmlString) {
 }
 
 function extractXmlFromZip(zipBuffer, shareCode) {
+  if (!zipBuffer || zipBuffer.length > 5 * 1024 * 1024) {
+    throw new Error('Aadhaar ZIP archive exceeds maximum allowed size of 5MB.');
+  }
+
   const zip = new AdmZip(zipBuffer);
   const entries = zip.getEntries();
-  const xmlEntry = entries.find(e => e.entryName.toLowerCase().endsWith('.xml'));
+  if (entries.length > 10) {
+    throw new Error('ZIP archive contains too many entries (max 10 allowed). Potential archive bomb detected.');
+  }
+
+  let totalUncompressedSize = 0;
+  for (const e of entries) {
+    totalUncompressedSize += (e.header?.size || 0);
+    if (totalUncompressedSize > 10 * 1024 * 1024) {
+      throw new Error('ZIP archive uncompressed size exceeds maximum safety limit of 10MB.');
+    }
+  }
+
+  const xmlEntry = entries.find(e => {
+    const name = e.entryName.toLowerCase();
+    if (e.entryName.includes('..') || e.entryName.startsWith('/') || e.entryName.startsWith('\\')) {
+      return false;
+    }
+    return name.endsWith('.xml');
+  });
+
   if (!xmlEntry) {
     throw new Error('No Aadhaar XML file found inside the uploaded ZIP archive.');
+  }
+
+  if (xmlEntry.header && xmlEntry.header.size > 5 * 1024 * 1024) {
+    throw new Error('Aadhaar XML entry inside archive exceeds maximum allowed size of 5MB.');
   }
 
   let xmlText = '';
@@ -164,7 +199,10 @@ function extractXmlFromZip(zipBuffer, shareCode) {
   if (shareCode) {
     try {
       const buf = xmlEntry.getData(String(shareCode).trim());
-      if (buf && buf.length > 0) xmlText = buf.toString('utf8');
+      if (buf && buf.length > 0) {
+        if (buf.length > 5 * 1024 * 1024) throw new Error('Decompressed XML exceeds 5MB limit.');
+        xmlText = buf.toString('utf8');
+      }
     } catch (e) {
       console.warn('Zip decryption with shareCode attempt error:', e.message);
     }
@@ -174,7 +212,10 @@ function extractXmlFromZip(zipBuffer, shareCode) {
   if (!xmlText) {
     try {
       const buf = xmlEntry.getData();
-      if (buf && buf.length > 0) xmlText = buf.toString('utf8');
+      if (buf && buf.length > 0) {
+        if (buf.length > 5 * 1024 * 1024) throw new Error('Decompressed XML exceeds 5MB limit.');
+        xmlText = buf.toString('utf8');
+      }
     } catch (e) {
       console.warn('Zip unencrypted extraction error:', e.message);
     }
@@ -290,6 +331,9 @@ router.get('/kyc/', authenticateJWT, async (req, res) => {
     if (!kyc) return res.status(200).json({ status: 'pending' });
     return res.status(200).json({
       status: kyc.status,
+      is_demo: Boolean(kyc.is_demo),
+      is_genuine: Boolean(kyc.status === 'approved' && !kyc.is_demo),
+      verification_type: kyc.is_demo ? 'SIMULATED_DEMO' : (kyc.verification_type || 'OFFICIAL_UIDAI'),
       masked_aadhaar: kyc.masked_aadhaar || '',
       full_name: kyc.full_name || '',
       dob: kyc.dob || '',
@@ -325,8 +369,17 @@ router.post('/kyc/offline-ekyc', authenticateJWT, async (req, res) => {
 
     const cleanBase64 = file_base64.replace(/^data:[^;]+;base64,/, '');
     const fileBuffer = Buffer.from(cleanBase64, 'base64');
-    const isZip = file_name.toLowerCase().endsWith('.zip') ||
-                  (fileBuffer[0] === 0x50 && fileBuffer[1] === 0x4b); // PK zip magic header
+
+    if (fileBuffer.length > 5 * 1024 * 1024) {
+      return res.status(400).json({ error: 'Uploaded file exceeds maximum allowed size limit of 5MB.' });
+    }
+
+    const ext = path.extname(file_name || '').toLowerCase();
+    if (ext && !['.zip', '.xml'].includes(ext)) {
+      return res.status(400).json({ error: 'Invalid file type. Only Aadhaar .zip archives or .xml files are accepted.' });
+    }
+
+    const isZip = (ext === '.zip') || (fileBuffer.length >= 4 && fileBuffer[0] === 0x50 && fileBuffer[1] === 0x4b);
 
     let xmlContent = '';
     if (isZip) {
@@ -336,6 +389,10 @@ router.post('/kyc/offline-ekyc', authenticateJWT, async (req, res) => {
       xmlContent = extractXmlFromZip(fileBuffer, share_code);
     } else {
       // Direct XML file
+      const startText = fileBuffer.slice(0, 100).toString('utf8').trim();
+      if (!startText.startsWith('<?xml') && !startText.startsWith('<OfflinePaperlessKyc') && !startText.startsWith('<offlinePaperlessKyc')) {
+        return res.status(400).json({ error: 'Uploaded file content does not match valid Aadhaar XML or ZIP format.' });
+      }
       xmlContent = fileBuffer.toString('utf8');
       if (!xmlContent.includes('OfflinePaperlessKyc') && !xmlContent.includes('UidData')) {
         return res.status(400).json({ error: 'Uploaded file is not a valid Aadhaar Offline e-KYC document.' });
@@ -451,11 +508,14 @@ router.post('/kyc/offline-ekyc', authenticateJWT, async (req, res) => {
 // ─────────────────────────────────────────────────────────────────────────────
 router.post('/kyc/sample-offline-ekyc', authenticateJWT, async (req, res) => {
   try {
-    // Issue 3: Prevent demo KYC endpoint from bypassing compliance on production accounts
-    const isDevAllowed = process.env.NODE_ENV !== 'production' || process.env.ALLOW_DEMO_KYC === 'true';
-    if (!isDevAllowed) {
+    // Demo KYC Security: Disabled by default. Never enable simply because NODE_ENV is missing/undefined.
+    // Requires an explicit configuration flag: ALLOW_DEMO_KYC=true
+    const isExplicitDemoAllowed = process.env.ALLOW_DEMO_KYC === 'true';
+    if (!isExplicitDemoAllowed) {
       return res.status(403).json({
-        error: 'Demo e-KYC endpoint is disabled in production compliance mode. Real user verification requires authentic UIDAI documents.'
+        error: 'Demo e-KYC simulation is disabled by default. Set ALLOW_DEMO_KYC=true in server configuration to enable simulated identity verification for testing.',
+        is_demo: true,
+        allowed: false
       });
     }
 
@@ -477,18 +537,21 @@ router.post('/kyc/sample-offline-ekyc', authenticateJWT, async (req, res) => {
       full_name: demoName,
       dob: '14-08-1996',
       gender: 'F',
-      id_type: 'Aadhaar Paperless Offline e-KYC (Demo Sandbox)',
+      id_type: 'Aadhaar Paperless Offline e-KYC (Demo Simulated Sandbox)',
       kyc_mode: 'offline_xml_demo',
       is_demo: true,
+      is_genuine: false,
+      verification_type: 'SIMULATED_DEMO',
+      status_display: 'Simulated Demo (Not Genuine Verification)',
       masked_aadhaar: maskedAadhaar,
       reference_id: demoRef,
       address_line: fullAddress,
       id_proof_preview: samplePhotoUrl,
       id_proof_name: 'uidai_offline_aadhaar_sample.xml',
-      otp_verified: true,
-      ocr_verified: true,
-      has_digital_signature: true,
-      status: 'approved',
+      otp_verified: false,
+      ocr_verified: false,
+      has_digital_signature: false,
+      status: 'demo_approved',
       confidence_score: 99.9,
       submitted_at: new Date(),
       reviewed_at: new Date(),
@@ -501,12 +564,14 @@ router.post('/kyc/sample-offline-ekyc', authenticateJWT, async (req, res) => {
       { upsert: true }
     );
 
+    // Prevent demo KYC from granting genuine identity verification
     await db.collection('users').updateOne(
       { _id: userId },
       {
         $set: {
-          kyc_verified: true,
-          kyc_status: 'approved',
+          kyc_verified: false,
+          is_demo_kyc: true,
+          kyc_status: 'demo_approved',
           full_name: demoName,
           address: fullAddress,
           dob: '14-08-1996'
@@ -516,11 +581,14 @@ router.post('/kyc/sample-offline-ekyc', authenticateJWT, async (req, res) => {
 
     return res.status(200).json({
       success: true,
-      message: 'Demo Aadhaar Paperless Offline e-KYC loaded & approved successfully (Sandbox Mode)!',
-      status: 'approved',
+      is_demo: true,
+      is_genuine: false,
+      verification_type: 'SIMULATED_DEMO',
+      message: 'Demo Aadhaar Paperless Offline e-KYC loaded in Simulation Sandbox Mode. This is a non-genuine simulated verification for testing.',
+      status: 'demo_approved',
       confidence_score: 99.9,
       kyc: {
-        status: 'approved',
+        status: 'demo_approved',
         full_name: demoName,
         dob: '14-08-1996',
         gender: 'F',
@@ -528,8 +596,10 @@ router.post('/kyc/sample-offline-ekyc', authenticateJWT, async (req, res) => {
         address: fullAddress,
         reference_id: demoRef,
         photo_url: samplePhotoUrl,
-        has_digital_signature: true,
-        is_demo: true
+        has_digital_signature: false,
+        is_demo: true,
+        is_genuine: false,
+        verification_type: 'SIMULATED_DEMO'
       }
     });
   } catch (err) {

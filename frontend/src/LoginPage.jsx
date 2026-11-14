@@ -1,3 +1,5 @@
+import { showToast } from './utils/toast';
+import { publicFetch } from './utils/api';
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Lock, Mail, ArrowRight, Home as HomeIcon, KeyRound, CheckCircle, X, ShieldAlert } from 'lucide-react';
@@ -20,28 +22,13 @@ const LoginPage = ({ onLogin }) => {
   const [resetError, setResetError] = useState('');
   const [resetLoading, setResetLoading] = useState(false);
 
-  const fetchApi = async (url, opts) => {
-    try {
-      return await fetch(url, opts);
-    } catch (e1) {
-      if (typeof url === 'string' && url.includes('localhost:8000')) {
-        try {
-          return await fetch(url.replace('localhost:8000', '127.0.0.1:8000'), opts);
-        } catch (e2) {
-          return await fetch(url.replace(/^http:\/\/localhost:8000/, ''), opts);
-        }
-      }
-      throw e1;
-    }
-  };
-
   const handleLogin = async (e) => {
     e.preventDefault();
     setIsLoading(true);
     setError('');
     
     try {
-      const response = await fetchApi('http://localhost:8000/api/token/', {
+      const response = await publicFetch('/api/token/', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -75,7 +62,7 @@ const LoginPage = ({ onLogin }) => {
     setResetMessage('');
 
     try {
-      const res = await fetchApi('http://localhost:8000/api/auth/password-reset-request/', {
+      const res = await publicFetch('/api/auth/password-reset-request/', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: resetEmail })
@@ -102,7 +89,7 @@ const LoginPage = ({ onLogin }) => {
     setResetError('');
 
     try {
-      const res = await fetchApi('http://localhost:8000/api/auth/password-reset-confirm/', {
+      const res = await publicFetch('/api/auth/password-reset-confirm/', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: resetEmail, otp: resetOtp, new_password: newPassword })
@@ -111,7 +98,7 @@ const LoginPage = ({ onLogin }) => {
       if (!res.ok) {
         throw new Error(data.error || 'Failed to reset password');
       }
-      alert('Password reset successfully! You can now sign in with your new password.');
+      showToast.success('Password reset successfully! You can now sign in with your new password.', 'Password Reset');
       setShowForgotModal(false);
       setResetStep(1);
       setResetEmail('');
@@ -235,13 +222,16 @@ const LoginPage = ({ onLogin }) => {
           alignItems: 'center',
           justifyContent: 'center',
           zIndex: 1200,
-          padding: '1rem'
+          padding: '1rem',
+          overflowY: 'auto'
         }}>
           <div style={{
             background: 'white',
             borderRadius: '16px',
             maxWidth: '440px',
             width: '100%',
+            maxHeight: '90vh',
+            overflowY: 'auto',
             padding: '2rem',
             boxShadow: '0 20px 40px rgba(0,0,0,0.2)',
             position: 'relative'

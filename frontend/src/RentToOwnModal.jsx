@@ -64,7 +64,7 @@ export default function RentToOwnModal({ rental, onClose, onBuyoutSuccess, onTen
     setIsProcessing(true);
     setErrorMsg('');
     try {
-      const res = await fetchWithAuth('http://localhost:8000/api/rentals/', {
+      const res = await fetchWithAuth('/api/rentals/', {
         method: 'PATCH',
         body: JSON.stringify({
           rental_id: rental.rental_id,
@@ -101,7 +101,7 @@ export default function RentToOwnModal({ rental, onClose, onBuyoutSuccess, onTen
     setIsProcessing(true);
     setErrorMsg('');
     try {
-      const res = await fetchWithAuth('http://localhost:8000/api/rentals/', {
+      const res = await fetchWithAuth('/api/rentals/', {
         method: 'PATCH',
         body: JSON.stringify({
           rental_id: rental.rental_id,

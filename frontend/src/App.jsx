@@ -24,6 +24,7 @@ import ForbiddenPage      from './ForbiddenPage';
 import SessionExpiredPage from './SessionExpiredPage';
 import OfflinePage        from './OfflinePage';
 import RentoraConcierge   from './RentoraConcierge';
+import { ToastContainer } from './utils/toast';
 
 // ── Lazy-loaded Legal & Info pages ───────────────────────────────────────────
 const TermsPage        = lazy(() => import('./LegalPages').then(m => ({ default: m.TermsPage })));
@@ -210,6 +211,7 @@ function App() {
 
         {/* Global AI concierge – shown on all pages */}
         <RentoraConcierge />
+        <ToastContainer />
       </ErrorBoundary>
     </Router>
   );

@@ -40,6 +40,7 @@ const PaymentGatewayModal = ({
   const [gatewayConfig, setGatewayConfig] = useState(null);
   const [isScriptLoaded, setIsScriptLoaded] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+  const [autoDebitEnabled, setAutoDebitEnabled] = useState(true);
   
   // UPI Form state
   const [upiId, setUpiId] = useState('');
@@ -162,11 +163,13 @@ const PaymentGatewayModal = ({
                 setTimeout(() => {
                   onPaymentSuccess({
                     payment_method: 'RAZORPAY',
+                    auto_debit_enabled: autoDebitEnabled,
                     payment_details: {
                       razorpay_order_id: response.razorpay_order_id,
                       razorpay_payment_id: response.razorpay_payment_id,
                       razorpay_signature: response.razorpay_signature,
                       method: 'RAZORPAY_CHECKOUT',
+                      auto_debit_enabled: autoDebitEnabled,
                       verified: true
                     }
                   });
@@ -266,11 +269,13 @@ const PaymentGatewayModal = ({
           setTimeout(() => {
             onPaymentSuccess({
               payment_method: paymentMethod,
+              auto_debit_enabled: autoDebitEnabled,
               payment_details: {
                 ...paymentDetails,
                 razorpay_order_id: orderData.order_id,
                 razorpay_payment_id: fakePaymentId,
                 razorpay_signature: fakeSignature,
+                auto_debit_enabled: autoDebitEnabled,
                 verified: true
               }
             });
@@ -287,10 +292,12 @@ const PaymentGatewayModal = ({
         setTimeout(() => {
           onPaymentSuccess({
             payment_method: paymentMethod,
+            auto_debit_enabled: autoDebitEnabled,
             payment_details: {
               ...paymentDetails,
               razorpay_order_id: orderData.order_id,
               razorpay_payment_id: fakePaymentId,
+              auto_debit_enabled: autoDebitEnabled,
               verified: true
             }
           });
@@ -363,40 +370,56 @@ const PaymentGatewayModal = ({
   };
 
   return (
-    <div style={{
-      position: 'fixed',
-      inset: 0,
-      backgroundColor: 'rgba(15, 23, 42, 0.75)',
-      backdropFilter: 'blur(8px)',
-      zIndex: 1000,
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      padding: '1rem',
-      animation: 'fadeIn 0.2s ease-out'
-    }}>
-      <div style={{
-        background: '#ffffff',
-        borderRadius: '20px',
-        width: '100%',
-        maxWidth: '740px',
-        overflow: 'hidden',
-        boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.3)',
+    <div 
+      onClick={(e) => {
+        if (e.target === e.currentTarget && stage === 'input') {
+          onClose();
+        }
+      }}
+      style={{
+        position: 'fixed',
+        inset: 0,
+        backgroundColor: 'rgba(15, 23, 42, 0.75)',
+        backdropFilter: 'blur(8px)',
+        WebkitBackdropFilter: 'blur(8px)',
+        zIndex: 1000,
         display: 'flex',
-        flexDirection: 'column',
-        position: 'relative',
-        border: '1px solid rgba(255, 255, 255, 0.2)'
-      }}>
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 'clamp(0.5rem, 2vw, 1.25rem)',
+        overflowY: 'auto',
+        animation: 'fadeIn 0.2s ease-out'
+      }}
+    >
+      <div 
+        className="payment-modal-card"
+        style={{
+          background: '#ffffff',
+          borderRadius: '20px',
+          width: '100%',
+          maxWidth: '760px',
+          maxHeight: 'min(92vh, 760px)',
+          overflow: 'hidden',
+          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.3)',
+          display: 'flex',
+          flexDirection: 'column',
+          position: 'relative',
+          border: '1px solid rgba(255, 255, 255, 0.2)',
+          margin: 'auto',
+          boxSizing: 'border-box'
+        }}
+      >
         
         {/* Header Bar */}
         <div style={{
           background: 'linear-gradient(135deg, #0b0f19 0%, #1a2234 100%)',
           color: '#ffffff',
-          padding: '1.25rem 1.75rem',
+          padding: '1rem 1.5rem',
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
-          borderBottom: '1px solid rgba(255, 255, 255, 0.1)'
+          borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
+          flexShrink: 0
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
             <div style={{
@@ -475,11 +498,15 @@ const PaymentGatewayModal = ({
         <div style={{
           background: '#f8fafc',
           borderBottom: '1px solid #e2e8f0',
-          padding: '0.65rem 1.75rem',
+          padding: '0.55rem 1.5rem',
           display: 'flex',
           justifyContent: 'space-between',
-          fontSize: '0.8rem',
-          color: '#64748b'
+          alignItems: 'center',
+          flexWrap: 'wrap',
+          gap: '0.4rem',
+          fontSize: '0.78rem',
+          color: '#64748b',
+          flexShrink: 0
         }}>
           <div>
             <span>1st Month Rent: <strong>₹{rentAmount}</strong></span>
@@ -498,12 +525,13 @@ const PaymentGatewayModal = ({
           <div style={{
             background: '#fef2f2',
             borderBottom: '1px solid #fecaca',
-            padding: '0.6rem 1.75rem',
+            padding: '0.6rem 1.5rem',
             color: '#dc2626',
             fontSize: '0.8rem',
             display: 'flex',
             alignItems: 'center',
-            gap: '0.5rem'
+            gap: '0.5rem',
+            flexShrink: 0
           }}>
             <AlertCircle size={15} />
             <span>{errorMessage}</span>
@@ -560,16 +588,21 @@ const PaymentGatewayModal = ({
             </span>
           </div>
         ) : (
-          <div style={{ display: 'flex', minHeight: '390px' }}>
+          <div className="payment-modal-body" style={{ display: 'flex', flex: 1, minHeight: 0, overflow: 'hidden' }}>
             
             {/* Sidebar Method Selector */}
-            <div style={{
-              width: '230px',
-              background: '#f8fafc',
-              borderRight: '1px solid #e2e8f0',
-              display: 'flex',
-              flexDirection: 'column'
-            }}>
+            <div 
+              className="payment-modal-sidebar"
+              style={{
+                width: '230px',
+                background: '#f8fafc',
+                borderRight: '1px solid #e2e8f0',
+                display: 'flex',
+                flexDirection: 'column',
+                flexShrink: 0,
+                overflowY: 'auto'
+              }}
+            >
               {/* TAB: Official Razorpay Gateway */}
               <button
                 onClick={() => setActiveTab('razorpay')}
@@ -753,14 +786,62 @@ const PaymentGatewayModal = ({
                 </div>
               </button>
 
-              <div style={{ marginTop: 'auto', padding: '1rem', borderTop: '1px solid #e2e8f0', fontSize: '0.7rem', color: '#94a3b8' }}>
+              <div className="sidebar-footer" style={{ marginTop: 'auto', padding: '1rem', borderTop: '1px solid #e2e8f0', fontSize: '0.7rem', color: '#94a3b8' }}>
                 🛡️ Verified by Razorpay PCI-DSS Level 1 Gateway
               </div>
             </div>
 
             {/* Main Tab Panel */}
-            <div style={{ flex: 1, padding: '1.75rem 2rem', background: '#ffffff', overflowY: 'auto' }}>
+            <div 
+              className="payment-modal-content"
+              style={{ 
+                flex: 1, 
+                padding: '1.5rem 1.75rem', 
+                background: '#ffffff', 
+                overflowY: 'auto',
+                minWidth: 0,
+                boxSizing: 'border-box'
+              }}
+            >
               
+                            {/* UPI AutoPay & Recurring e-Mandate Add-on */}
+              <div 
+                onClick={() => setAutoDebitEnabled(!autoDebitEnabled)}
+                style={{
+                  background: autoDebitEnabled ? '#f0fdf4' : '#f8fafc',
+                  border: `1.5px solid ${autoDebitEnabled ? '#86efac' : '#e2e8f0'}`,
+                  borderRadius: '12px',
+                  padding: '0.75rem 1rem',
+                  marginBottom: '1.25rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  cursor: 'pointer',
+                  transition: 'all 0.15s ease'
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+                  <div style={{ background: autoDebitEnabled ? '#dcfce7' : '#f1f5f9', padding: '0.35rem', borderRadius: '8px' }}>
+                    <Zap size={16} color={autoDebitEnabled ? '#16a34a' : '#64748b'} />
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '0.82rem', fontWeight: 700, color: autoDebitEnabled ? '#166534' : '#334155', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                      <span>1-Click UPI AutoPay & e-Mandate</span>
+                      <span style={{ fontSize: '0.65rem', background: '#16a34a', color: '#fff', padding: '0.05rem 0.35rem', borderRadius: '4px', fontWeight: 800 }}>RECOMMENDED</span>
+                    </div>
+                    <div style={{ fontSize: '0.72rem', color: autoDebitEnabled ? '#15803d' : '#64748b', marginTop: '0.1rem' }}>
+                      Hassle-free monthly renewals with ₹0 late fees. Pause or cancel anytime in My Rentals.
+                    </div>
+                  </div>
+                </div>
+                <input
+                  type="checkbox"
+                  checked={autoDebitEnabled}
+                  onChange={(e) => setAutoDebitEnabled(e.target.checked)}
+                  style={{ accentColor: '#16a34a', width: '18px', height: '18px', cursor: 'pointer' }}
+                />
+              </div>
+
               {/* TAB 0: OFFICIAL RAZORPAY STANDARD GATEWAY (FEATURED) */}
               {activeTab === 'razorpay' && (
                 <div className="animate-fade-in">

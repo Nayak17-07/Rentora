@@ -1,3 +1,4 @@
+import { getApiUrl } from './api';
 /**
  * Client-Side CSV Exporter with UTF-8 BOM encoding for Excel compatibility
  */
@@ -34,5 +35,5 @@ export function downloadCsv(filename, headers, rows) {
 }
 
 export function exportViaServer(type) {
-  window.open(`http://localhost:8000/api/admin/export/?type=${type}`, '_blank');
+  window.open(getApiUrl(`/api/admin/export/?type=${type}`), '_blank');
 }

@@ -1,3 +1,4 @@
+import { showToast } from './utils/toast';
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { 
@@ -32,6 +33,7 @@ const OwnerDashboard = ({ onLogout }) => {
   // Modal states
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingAppliance, setEditingAppliance] = useState(null);
+  const [selectedEscrowRental, setSelectedEscrowRental] = useState(null);
   const [formSubmitting, setFormSubmitting] = useState(false);
   const [actionMessage, setActionMessage] = useState({ type: '', text: '' });
 
@@ -79,7 +81,7 @@ const OwnerDashboard = ({ onLogout }) => {
   const loadDashboard = async () => {
     try {
       setLoading(true);
-      const res = await fetchWithAuth('http://localhost:8000/api/owner/dashboard/');
+      const res = await fetchWithAuth('/api/owner/dashboard/');
       if (res.ok) {
         const data = await res.json();
         setDashboardData(data);
@@ -170,10 +172,32 @@ const OwnerDashboard = ({ onLogout }) => {
     setShowAddModal(true);
   };
 
+  const handleToggleListingStatus = async (app) => {
+    try {
+      const targetId = app.appliance_id || app._id;
+      const nextStock = app.stock_quantity > 0 ? 0 : 1;
+      const res = await fetchWithAuth(`/api/owner/appliances/${targetId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ stock_quantity: nextStock })
+      });
+      if (res.ok) {
+        setActionMessage({
+          type: 'success',
+          text: `Listing status updated to ${nextStock > 0 ? 'ACTIVE' : 'PAUSED'}.`
+        });
+        loadDashboard();
+        setTimeout(() => setActionMessage({ type: '', text: '' }), 4000);
+      }
+    } catch (e) {
+      console.error('Error toggling status:', e);
+    }
+  };
+
   const handleDeleteListing = async (appId) => {
     if (!window.confirm('Are you sure you want to remove this appliance listing?')) return;
     try {
-      const res = await fetchWithAuth(`http://localhost:8000/api/owner/appliances/${appId}`, {
+      const res = await fetchWithAuth(`/api/owner/appliances/${appId}`, {
         method: 'DELETE'
       });
       if (res.ok) {
@@ -203,8 +227,8 @@ const OwnerDashboard = ({ onLogout }) => {
       };
 
       const url = editingAppliance
-        ? `http://localhost:8000/api/owner/appliances/${editingAppliance.appliance_id || editingAppliance._id}`
-        : 'http://localhost:8000/api/owner/appliances/';
+        ? `/api/owner/appliances/${editingAppliance.appliance_id || editingAppliance._id}`
+        : '/api/owner/appliances/';
       const method = editingAppliance ? 'PUT' : 'POST';
 
       const res = await fetchWithAuth(url, {
@@ -233,7 +257,7 @@ const OwnerDashboard = ({ onLogout }) => {
 
   const switchToCustomer = async () => {
     try {
-      await fetchWithAuth('http://localhost:8000/api/auth/switch-role/', {
+      await fetchWithAuth('/api/auth/switch-role/', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ role: 'customer' })
@@ -247,7 +271,7 @@ const OwnerDashboard = ({ onLogout }) => {
   const handleExportEarningsCSV = () => {
     const activeBookings = dashboardData?.active_bookings || [];
     if (activeBookings.length === 0) {
-      alert("No active booking earnings to export yet.");
+      showToast.info("No active booking earnings to export yet.", "Export Unavailable");
       return;
     }
     const headers = ["Booking ID", "Appliance Name", "Monthly Rent (INR)", "Owner Net Share (85%)", "Platform Commission (15%)", "Tenure (Months)", "Status", "Rented Date"];
@@ -275,12 +299,12 @@ const OwnerDashboard = ({ onLogout }) => {
     e.preventDefault();
     const amt = parseFloat(withdrawAmount) || 0;
     if (amt <= 0) {
-      alert("Please enter a valid withdrawal amount.");
+      showToast.error("Please enter a valid withdrawal amount.", "Invalid Amount");
       return;
     }
     setWithdrawLoading(true);
     try {
-      const res = await fetchWithAuth('http://localhost:8000/api/owner/withdraw/', {
+      const res = await fetchWithAuth('/api/owner/withdraw/', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -313,11 +337,11 @@ const OwnerDashboard = ({ onLogout }) => {
         setTimeout(() => setWithdrawSuccess(null), 8000);
       } else {
         const err = await res.json();
-        alert(err.error || 'Failed to process withdrawal');
+        showToast.error(err.error || 'Failed to process withdrawal', 'Withdrawal Failed');
       }
     } catch (err) {
       console.error('Withdrawal error:', err);
-      alert('Network error submitting withdrawal');
+      showToast.error('Network error submitting withdrawal', 'Network Error');
     } finally {
       setWithdrawLoading(false);
     }
@@ -776,6 +800,31 @@ const OwnerDashboard = ({ onLogout }) => {
                         </div>
                       </div>
 
+                      {/* Status Toggle (Active / Paused) */}
+                      <button
+                        type="button"
+                        onClick={() => handleToggleListingStatus(app)}
+                        style={{
+                          background: app.stock_quantity > 0 ? '#ecfdf5' : '#fffbeb',
+                          color: app.stock_quantity > 0 ? '#059669' : '#b45309',
+                          border: `1px solid ${app.stock_quantity > 0 ? '#a7f3d0' : '#fde68a'}`,
+                          padding: '0.45rem',
+                          borderRadius: '6px',
+                          fontSize: '0.75rem',
+                          fontWeight: 700,
+                          cursor: 'pointer',
+                          marginBottom: '0.5rem',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '0.35rem'
+                        }}
+                        title="Toggle listing availability between Active and Paused"
+                      >
+                        <span style={{ fontSize: '0.65rem' }}>●</span>
+                        <span>{app.stock_quantity > 0 ? 'Status: Active in Catalog (Click to Pause)' : 'Status: Paused (Click to Activate)'}</span>
+                      </button>
+
                       <div style={{ display: 'flex', gap: '0.5rem' }}>
                         <button
                           onClick={() => handleOpenEdit(app)}
@@ -856,6 +905,7 @@ const OwnerDashboard = ({ onLogout }) => {
                       <th style={{ padding: '0.85rem 1.25rem' }}>Tenure</th>
                       <th style={{ padding: '0.85rem 1.25rem' }}>Status</th>
                       <th style={{ padding: '0.85rem 1.25rem' }}>Booking Date</th>
+                      <th style={{ padding: '0.85rem 1.25rem' }}>Escrow Ledger</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -892,6 +942,34 @@ const OwnerDashboard = ({ onLogout }) => {
                         </td>
                         <td style={{ padding: '1rem 1.25rem', color: '#64748b', fontSize: '0.8rem' }}>
                           {b.rented_at ? new Date(b.rented_at).toLocaleDateString() : 'Recent'}
+                        </td>
+                        <td style={{ padding: '1rem 1.25rem' }}>
+                          <button
+                            type="button"
+                            onClick={() => setSelectedEscrowRental({
+                              rental_id: b.rental_id || b._id,
+                              appliance: { rental_name: b.appliance_name },
+                              security_deposit: b.security_deposit || 750,
+                              deposit_status: 'HELD'
+                            })}
+                            style={{
+                              background: '#ecfdf5',
+                              color: '#065f46',
+                              border: '1px solid #a7f3d0',
+                              borderRadius: '6px',
+                              padding: '0.25rem 0.55rem',
+                              fontSize: '0.72rem',
+                              fontWeight: 700,
+                              cursor: 'pointer',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '0.3rem'
+                            }}
+                            title="Inspect RBI-compliant escrow ledger and security deposit state"
+                          >
+                            <ShieldCheck size={12} color="#059669" />
+                            <span>Escrow Ledger</span>
+                          </button>
                         </td>
                       </tr>
                     ))}
@@ -1246,7 +1324,8 @@ const OwnerDashboard = ({ onLogout }) => {
           alignItems: 'center',
           justifyContent: 'center',
           zIndex: 100,
-          padding: '1.5rem'
+          padding: '1.5rem',
+          overflowY: 'auto'
         }}>
           <div style={{
             background: '#ffffff',
@@ -1460,15 +1539,17 @@ const OwnerDashboard = ({ onLogout }) => {
           alignItems: 'center',
           justifyContent: 'center',
           zIndex: 1000,
-          padding: '1.5rem'
+          padding: '1.5rem',
+          overflowY: 'auto'
         }}>
           <div style={{
             background: '#ffffff',
             borderRadius: '20px',
             width: '100%',
             maxWidth: '500px',
+            maxHeight: '90vh',
+            overflowY: 'auto',
             boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)',
-            overflow: 'hidden',
             animation: 'fadeIn 0.2s ease-out'
           }}>
             {/* Modal Header */}
@@ -1745,6 +1826,8 @@ const OwnerDashboard = ({ onLogout }) => {
           </div>
         </div>
       )}
+
+
     </div>
   );
 };

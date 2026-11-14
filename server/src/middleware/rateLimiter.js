@@ -20,6 +20,10 @@ function createRateLimiter({
   keyGenerator = (req) => req.ip || req.headers['x-forwarded-for'] || req.socket?.remoteAddress || 'unknown-client'
 }) {
   return function rateLimiter(req, res, next) {
+    if (process.env.NODE_ENV !== 'production') {
+      return next();
+    }
+
     const now = Date.now();
     const clientKey = String(keyGenerator(req));
 

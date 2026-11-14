@@ -121,6 +121,32 @@ router.post('/payments/', authenticateJWT, async (req, res) => {
       );
     }
 
+    // Verify signature for online Razorpay payments
+    const isRazorpayMethod = payment_method.startsWith('RAZORPAY') || Boolean(razorpay_payment_id);
+    let paymentStatus = 'SUCCESS';
+    let isSimulated = false;
+
+    if (isRazorpayMethod) {
+      if (razorpay_order_id && razorpay_payment_id && razorpay_signature) {
+        const verifyRes = verifySignature({
+          order_id: razorpay_order_id,
+          payment_id: razorpay_payment_id,
+          signature: razorpay_signature
+        });
+        if (!verifyRes.isValid) {
+          return res.status(400).json({ error: 'Cryptographic payment signature mismatch. Potential payment tampering detected.' });
+        }
+        paymentStatus = 'SUCCESS';
+      } else if (process.env.ALLOW_PAYMENT_SIMULATION === 'true' || (process.env.NODE_ENV !== 'production' || req.body?.is_simulation === true)) {
+        isSimulated = true;
+        paymentStatus = 'SUCCESS';
+      } else {
+        return res.status(400).json({
+          error: 'Online payment requires valid razorpay_order_id, razorpay_payment_id, and razorpay_signature in production.'
+        });
+      }
+    }
+
     const rentPortion = Math.round((numericAmount / 1.18) * 100) / 100;
     const taxPortion = Math.round((numericAmount - rentPortion) * 100) / 100;
 
@@ -145,7 +171,8 @@ router.post('/payments/', authenticateJWT, async (req, res) => {
         razorpay_payment_id,
         razorpay_order_id
       },
-      status: 'SUCCESS',
+      status: paymentStatus,
+      is_simulation: isSimulated,
       payment_gateway: razorpay_payment_id ? 'Razorpay Payment Gateway' : 'Rentora Secured Gateway',
       created_at: now,
       rental_ids: targetRental ? [targetRental._id] : [],
@@ -273,19 +300,35 @@ async function handleCreateOrder(req, res) {
 
       let totalRent = 0.0;
       let totalDeposit = 0.0;
+      const ALLOWED_TENURES = ['3', '6', '12'];
 
       for (const item of cartItems) {
+        const rawTenure = item.tenure ? String(item.tenure).trim() : '';
+        if (!ALLOWED_TENURES.includes(rawTenure)) {
+          return res.status(400).json({
+            error: `Invalid rental tenure '${item.tenure || ''}' for appliance '${item.appliance_id}'. Supported tenures are 3, 6, and 12 months.`
+          });
+        }
+        const tenureStr = rawTenure;
+
         const app = await db.collection('appliances').findOne({
           $or: [{ appliance_id: item.appliance_id }, { _id: item.appliance_id }]
         });
-        if (app) {
-          const tenureStr = String(item.tenure || '3');
-          const pricing = app.pricing || {};
-          const itemPrice = parseFloat(pricing[tenureStr] || app.monthly_price || 500);
-          const itemDeposit = parseFloat(app.security_deposit || Math.round(itemPrice * 1.5));
-          totalRent += itemPrice;
-          totalDeposit += itemDeposit;
+        if (!app) {
+          return res.status(404).json({ error: `Appliance '${item.appliance_id}' not found in catalog.` });
         }
+
+        const pricing = app.pricing || {};
+        const rawPrice = pricing[tenureStr] !== undefined ? pricing[tenureStr] : app.monthly_price;
+        if (rawPrice === undefined || rawPrice === null || isNaN(parseFloat(rawPrice)) || parseFloat(rawPrice) <= 0) {
+          return res.status(400).json({
+            error: `Appliance "${app.rental_name}" has invalid or missing pricing configuration for tenure ${tenureStr} months.`
+          });
+        }
+        const itemPrice = parseFloat(rawPrice);
+        const itemDeposit = parseFloat(app.security_deposit !== undefined ? app.security_deposit : Math.round(itemPrice * 1.5));
+        totalRent += itemPrice;
+        totalDeposit += itemDeposit;
       }
 
       const taxAmount = Math.round(totalRent * 0.18 * 100) / 100;
@@ -371,6 +414,17 @@ async function handleVerifySignature(req, res) {
       });
     }
 
+    const db = getDb();
+    const existingOrder = await db.collection('payment_orders').findOne({ order_id: razorpay_order_id });
+    if (!existingOrder) {
+      return res.status(404).json({ error: 'Order not found in database.' });
+    }
+
+    // Verify order ownership
+    if (req.user && existingOrder.user_id !== req.user.id && req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Unauthorized: You do not own this payment order.' });
+    }
+
     const verification = verifySignature({
       order_id: razorpay_order_id,
       payment_id: razorpay_payment_id,
@@ -385,7 +439,6 @@ async function handleVerifySignature(req, res) {
       });
     }
 
-    const db = getDb();
     const paymentDetails = await fetchPayment(razorpay_payment_id);
 
     await db.collection('payment_orders').updateOne(
@@ -509,11 +562,14 @@ router.post('/payments/webhook', async (req, res) => {
   try {
     const signature = req.headers['x-razorpay-signature'];
     
-    // Verify HMAC-SHA256 signature if signature header is provided
-    if (signature) {
+    // Strict HMAC-SHA256 signature verification for webhook events
+    if (process.env.RAZORPAY_WEBHOOK_SECRET || process.env.NODE_ENV === 'production' || signature) {
+      if (!signature) {
+        return res.status(400).json({ error: 'Missing x-razorpay-signature header for webhook ingestion.' });
+      }
       const isValid = verifyWebhookSignature(req.body, signature);
       if (!isValid) {
-        return res.status(400).json({ error: 'Invalid Razorpay webhook HMAC signature' });
+        return res.status(400).json({ error: 'Invalid Razorpay webhook HMAC signature.' });
       }
     }
 

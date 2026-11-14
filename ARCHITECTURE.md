@@ -84,7 +84,7 @@ graph TB
 * **Functionality**: Lease termination, damage level evaluation, deposit refund processing, and automated inventory restocking (`$inc: {"stock_quantity": 1}`).
 
 ### 9. Asynchronous ETL Machine Learning Pipeline
-* **Functionality**: Python pipeline ([etl_pipeline.py](file:///c:/Users/dhran/Desktop/RentAI/ml_pipeline/etl_pipeline.py)) compiling user behavioral engagement metrics from MongoDB collections without locking live transactional data.
+* **Functionality**: Python pipeline ([etl_pipeline.py](ml_pipeline/etl_pipeline.py)) compiling user behavioral engagement metrics from MongoDB collections without locking live transactional data.
 
 ### 10. Predictive Churn Classification Engine (LightGBM)
 * **Functionality**: LightGBM GOSS classifier predicting churn risk probability with **95.33% Accuracy** and **99.10% ROC-AUC**.
@@ -106,18 +106,23 @@ graph TB
 
 ### 16. Serialized Inventory Asset Tracking & 4-Stage Refurbishment Workflow
 * **Functionality**: Physical inventory tracking across individual serialized units (`serial_number`, `rfid_tag`, `depot_location`, `condition_grade`: Grade A+/A/B) with depreciation book value, rental ROI recovery, and a 4-stage reverse logistics refurbishment pipeline (`RETURN_INSPECTION` $\rightarrow$ `SANITIZATION_PART_REPLACE` $\rightarrow$ `QUALITY_AUDIT_28PT` $\rightarrow$ `RESTOCKED_AVAILABLE`).
-* **Component**: [routes/inventory.js](file:///c:/Users/dhran/Desktop/RentAI/server/src/routes/inventory.js).
+* **Component**: [routes/inventory.js](server/src/routes/inventory.js).
 
 ### 17. Live Map-Based Real-Time GPS Logistics & Reverse Tracking
 * **Functionality**: Interactive GPS route map rendering live moving technician/van coordinates, origin warehouse depot, customer delivery pin, dynamic speed/distance gauge, and live ETA countdown (~8 mins). Supports delivery fulfillment and return pickups.
-* **Component**: [DeliveryTrackerModal.jsx](file:///c:/Users/dhran/Desktop/RentAI/frontend/src/DeliveryTrackerModal.jsx), [routes/tracking.js](file:///c:/Users/dhran/Desktop/RentAI/server/src/routes/tracking.js).
+* **Component**: [DeliveryTrackerModal.jsx](frontend/src/DeliveryTrackerModal.jsx), [routes/tracking.js](server/src/routes/tracking.js).
 
 ### 18. Comprehensive Executive Business Intelligence (BI) Suite
 * **Functionality**: Financial SaaS KPIs (MRR, ARR run-rate, ARPU, Customer LTV, RBI-compliant security deposit escrow liability, 96.8% collection efficiency), 6-month seasonal category predictive demand forecasting, metro city profitability heatmaps (Bangalore, Mumbai, Delhi-NCR, Hyderabad, Pune), customer cohort retention decay matrices, and 1-click executive brief CSV/Excel export.
-* **Component**: [BusinessIntelligenceTab.jsx](file:///c:/Users/dhran/Desktop/RentAI/frontend/src/BusinessIntelligenceTab.jsx), [routes/admin.js](file:///c:/Users/dhran/Desktop/RentAI/server/src/routes/admin.js).
+* **Component**: [BusinessIntelligenceTab.jsx](frontend/src/BusinessIntelligenceTab.jsx), [routes/admin.js](server/src/routes/admin.js).
 
 ### 19. Enterprise Razorpay Payment Gateway & Escrow Refund Pipeline
 * **Functionality**: Full-lifecycle Razorpay payment gateway integration supporting Razorpay Standard Checkout popup, UPI, 3D-Secure Cards, NetBanking, and Doorstep COD. Features backend order generation (`/api/payments/create-order`), constant-time cryptographic HMAC-SHA256 signature verification (`/api/payments/verify-signature`), monthly subscription renewals, Razorpay webhook event processing with signature verification (`/api/payments/webhook`), automated security deposit refunds (`/api/payments/refund`), and dual-mode operation (Live credentials or enterprise sandbox simulator).
-* **Component**: [razorpay.js](file:///c:/Users/dhran/Desktop/RentAI/server/src/utils/razorpay.js), [payments.js](file:///c:/Users/dhran/Desktop/RentAI/server/src/routes/payments.js), [PaymentGatewayModal.jsx](file:///c:/Users/dhran/Desktop/RentAI/frontend/src/PaymentGatewayModal.jsx).
+* **Component**: [razorpay.js](server/src/utils/razorpay.js), [payments.js](server/src/routes/payments.js), [PaymentGatewayModal.jsx](frontend/src/PaymentGatewayModal.jsx).
+
+### 20. Customer Browsing History & Clickstream Recommendation Feed
+* **Functionality**: Enterprise-grade product browsing history tracking across authenticated customers and guest sessions. Features zero-latency client-side caching in `localStorage`, persistent MongoDB `browsing_history` storage, deduplicated recency upsert with view counters, single-item removal, 1-click history clearing, relative time labeling ("Just now", "5m ago"), dynamic responsive horizontal carousel, and direct feedback loop into the AI Recommendation Engine for instant complementary room bundle personalizations.
+* **Component**: [browsingHistory.js](server/src/routes/browsingHistory.js), [browsingHistory.js](frontend/src/utils/browsingHistory.js), [RecentlyViewedSection.jsx](frontend/src/RecentlyViewedSection.jsx).
+
 
 

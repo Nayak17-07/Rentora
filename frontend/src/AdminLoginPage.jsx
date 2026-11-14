@@ -12,6 +12,7 @@ import {
   Sparkles
 } from 'lucide-react';
 import ThemeToggle from './ThemeToggle';
+import { publicFetch } from './utils/api';
 
 export default function AdminLoginPage() {
   const [identifier, setIdentifier] = useState('');
@@ -31,7 +32,7 @@ export default function AdminLoginPage() {
     setError('');
 
     try {
-      const res = await fetch('http://localhost:8000/api/auth/admin-login/', {
+      const res = await publicFetch('/api/auth/admin-login/', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',

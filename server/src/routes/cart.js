@@ -41,17 +41,21 @@ router.post('/cart/', authenticateJWT, async (req, res) => {
   try {
     const db = getDb();
     const userId = req.user.id;
-    const { appliance_id, tenure = '3', bundle_data } = req.body;
+    const { appliance_id, tenure, bundle_data } = req.body || {};
 
     if (!appliance_id) {
       return res.status(400).json({ error: 'appliance_id is required' });
     }
 
-    // Bug 28: Validate tenure commitment duration
+    if (tenure === undefined || tenure === null || String(tenure).trim() === '') {
+      return res.status(400).json({ error: 'tenure is required. Supported lease commitments: 3, 6, or 12 months.' });
+    }
+
+    // Validate tenure commitment duration - strictly 3, 6, or 12 months without silent substitution
     const validTenures = ['3', '6', '12'];
-    const tenureStr = String(tenure || '3');
+    const tenureStr = String(tenure).trim();
     if (!validTenures.includes(tenureStr)) {
-      return res.status(400).json({ error: 'Invalid tenure duration. Supported lease commitments: 3, 6, or 12 months.' });
+      return res.status(400).json({ error: `Invalid tenure '${tenure}'. Supported lease commitments: 3, 6, or 12 months.` });
     }
 
     const appToRent = await db.collection('appliances').findOne({

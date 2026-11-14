@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Calculator, TrendingUp, CheckCircle, ArrowRight, ShieldCheck, Sparkles } from 'lucide-react';
+import { Calculator, CheckCircle, ArrowRight } from 'lucide-react';
 
 const PRODUCTS = [
   {

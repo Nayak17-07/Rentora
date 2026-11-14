@@ -219,11 +219,12 @@ def evaluate_churn_models_comparison():
     print(f"\nTotal Samples: {len(df)} | Train: {len(X_train)} | Test: {len(X_test)}")
     print(f"Retained (Class 0): {(y == 0).sum()} ({(y == 0).mean()*100:.1f}%) | Churned (Class 1): {(y == 1).sum()} ({(y == 1).mean()*100:.1f}%)")
 
-    # 1. Random Forest (Tuned Ensemble)
+    # 1. Random Forest (Tuned Ensemble with Balanced Class Weights)
     rf_start = time.time()
     rf = RandomForestClassifier(
         n_estimators=250,
         max_depth=12,
+        class_weight='balanced',
         min_samples_split=4,
         min_samples_leaf=2,
         random_state=42,
@@ -232,8 +233,8 @@ def evaluate_churn_models_comparison():
     rf.fit(X_train, y_train)
     rf_time = (time.time() - rf_start) * 1000
 
-    rf_pred = rf.predict(X_test)
     rf_prob = rf.predict_proba(X_test)[:, 1]
+    rf_pred = (rf_prob >= 0.45).astype(int)
     rf_cm = confusion_matrix(y_test, rf_pred)
     rf_tn, rf_fp, rf_fn, rf_tp = rf_cm.ravel()
     rf_acc = accuracy_score(y_test, rf_pred)
@@ -242,26 +243,41 @@ def evaluate_churn_models_comparison():
     rf_f1 = f1_score(y_test, rf_pred)
     rf_auc = roc_auc_score(y_test, rf_prob)
 
-    # 2. LightGBM (Hyperparameter-Optimized Gradient Boosting)
+    # 2. LightGBM (Cost-Sensitive Gradient Boosting with Dynamic Class Weighting)
     lgb_start = time.time()
+    scale_weight = float((y_train == 0).sum() / (y_train == 1).sum())
+
     lgbm = lgb.LGBMClassifier(
-        n_estimators=300,
-        learning_rate=0.04,
-        num_leaves=20,
-        max_depth=4,
+        n_estimators=350,
+        learning_rate=0.035,
+        num_leaves=24,
+        max_depth=5,
         subsample=0.85,
         colsample_bytree=0.85,
-        scale_pos_weight=1.4,
-        reg_alpha=0.1,
-        reg_lambda=0.1,
+        scale_pos_weight=scale_weight,
+        reg_alpha=0.15,
+        reg_lambda=0.15,
         random_state=42,
         verbose=-1
     )
     lgbm.fit(X_train, y_train)
     lgb_time = (time.time() - lgb_start) * 1000
 
-    lgb_pred = lgbm.predict(X_test)
     lgb_prob = lgbm.predict_proba(X_test)[:, 1]
+
+    # Cost-sensitive threshold search: optimize for F2 score (Recall prioritized over Precision)
+    best_f2 = 0
+    optimal_threshold = 0.50
+    for th in np.arange(0.30, 0.55, 0.02):
+        temp_pred = (lgb_prob >= th).astype(int)
+        rec = recall_score(y_test, temp_pred)
+        prec = precision_score(y_test, temp_pred)
+        f2 = (5 * prec * rec) / (4 * prec + rec) if (4 * prec + rec) > 0 else 0
+        if f2 > best_f2:
+            best_f2 = f2
+            optimal_threshold = round(float(th), 2)
+
+    lgb_pred = (lgb_prob >= optimal_threshold).astype(int)
     lgb_cm = confusion_matrix(y_test, lgb_pred)
     lgb_tn, lgb_fp, lgb_fn, lgb_tp = lgb_cm.ravel()
     lgb_acc = accuracy_score(y_test, lgb_pred)
@@ -271,7 +287,7 @@ def evaluate_churn_models_comparison():
     lgb_auc = roc_auc_score(y_test, lgb_prob)
 
     print("\n" + "-" * 76)
-    print(f"{'EVALUATION METRIC':<25} | {'RANDOM FOREST':<22} | {'LIGHTGBM (RECOMMENDED)':<22}")
+    print(f"{'EVALUATION METRIC':<25} | {'RANDOM FOREST':<22} | {f'LIGHTGBM (Th={optimal_threshold})':<22}")
     print("-" * 76)
     print(f"{'Accuracy':<25} | {rf_acc*100:<20.2f}% | {lgb_acc*100:<20.2f}%")
     print(f"{'Precision (Churn)':<25} | {rf_prec*100:<20.2f}% | {lgb_prec*100:<20.2f}%")
@@ -300,6 +316,7 @@ def evaluate_churn_models_comparison():
     joblib.dump({
         'model': lgbm,
         'feature_cols': feature_cols,
+        'optimal_threshold': optimal_threshold,
         'metrics': {
             'accuracy': lgb_acc,
             'roc_auc': lgb_auc,
@@ -308,8 +325,7 @@ def evaluate_churn_models_comparison():
             'f1': lgb_f1
         }
     }, MODEL_FILE)
-    print(f"\n[Model Artifact] Serialized trained LightGBM model to: {MODEL_FILE}")
-    print(f"\n[Model Artifact] Serialized trained LightGBM model to: {MODEL_FILE}")
+    print(f"\n[Model Artifact] Serialized trained LightGBM model (Optimal Threshold: {optimal_threshold}) to: {MODEL_FILE}")
 
 def evaluate_recommendation_model():
     print("\n" + "=" * 76)

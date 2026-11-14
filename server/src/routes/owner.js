@@ -285,8 +285,8 @@ router.post('/withdraw/', async (req, res) => {
       });
     }
 
-    const payoutId = `PAY-${Math.floor(1000 + Math.random() * 9000)}`;
-    const utr = `UTR-${method.toUpperCase()}-${Math.floor(10000000 + Math.random() * 90000000)}`;
+    const payoutId = `PAY-${crypto.randomInt(1000, 10000)}`;
+    const utr = `UTR-${method.toUpperCase()}-${crypto.randomInt(10000000, 100000000)}`;
     const now = new Date();
 
     const payoutRecord = {
@@ -361,13 +361,8 @@ router.get('/export/', authenticateJWT, async (req, res) => {
       };
     });
 
-    const csvRows = [headers.join(',')];
-    for (const row of data) {
-      const vals = headers.map(h => `"${String(row[h] || '').replace(/"/g, '""')}"`);
-      csvRows.push(vals.join(','));
-    }
-
-    const csvString = '\uFEFF' + csvRows.join('\r\n');
+    const { buildCsvString } = require('../utils/csv');
+    const csvString = buildCsvString(headers, data);
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
     res.setHeader('Content-Disposition', 'attachment; filename=rentora_owner_earnings.csv');
     return res.status(200).send(csvString);

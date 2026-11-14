@@ -1,3 +1,4 @@
+import { showToast } from './utils/toast';
 import React, { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { 
@@ -30,16 +31,18 @@ import {
   Flame,
   Trash2,
   Star,
-  Plus
+  Plus,
+  Eye
 } from 'lucide-react';
-import { fetchWithAuth } from './utils/api';
+import { fetchWithAuth, publicFetch } from './utils/api';
 import { getSocket } from './utils/socket';
 import CitySelectionModal from './CitySelectionModal';
 import ProductDetailsModal from './ProductDetailsModal';
+import RecentlyViewedSection from './RecentlyViewedSection';
+import { trackApplianceView } from './utils/browsingHistory';
 import { CategoryIcon } from './CategoryIcons';
 import { AssuranceBanner } from './AssuranceBanner';
 import { RentVsBuyCalculator } from './RentVsBuyCalculator';
-import UNLMTDSubscriptionModal from './UNLMTDSubscriptionModal';
 import CuratedRoomCombos from './CuratedRoomCombos';
 import ThemeToggle from './ThemeToggle';
 
@@ -108,7 +111,10 @@ const HomePage = ({ onLogout }) => {
   const [statusFilter, setStatusFilter] = useState({ inStock: true, outOfStock: false });
   const [budgetFilter, setBudgetFilter] = useState('all');
   const [helpOpen, setHelpOpen] = useState(false);
-  const [showUNLMTDModal, setShowUNLMTDModal] = useState(false);
+  const scrollToRoomCombos = () => {
+    const el = document.getElementById('curated-combos-section');
+    if (el) el.scrollIntoView({ behavior: 'smooth' });
+  };
   const [storeMode, setStoreMode] = useState('rent'); // 'rent' | 'refurbished'
   const [currentUserRole, setCurrentUserRole] = useState(localStorage.getItem('user_role') || 'customer');
   const [currentUsername, setCurrentUsername] = useState(localStorage.getItem('username') || '');
@@ -249,13 +255,14 @@ const HomePage = ({ onLogout }) => {
     try {
       setShowUserMenu(false);
       if (currentUserRole !== 'owner') {
-        await fetchWithAuth('http://localhost:8000/api/auth/switch-role/', {
+        await fetchWithAuth('/api/auth/switch-role/', {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ role: 'owner' })
         });
         setCurrentUserRole('owner');
         localStorage.setItem('user_role', 'owner');
+        localStorage.setItem('is_owner', 'true');
       }
       navigate('/owner');
     } catch (e) {
@@ -268,7 +275,7 @@ const HomePage = ({ onLogout }) => {
     const token = localStorage.getItem('access_token');
     if (token) {
       try {
-        const userRes = await fetchWithAuth('http://localhost:8000/api/auth/me/');
+        const userRes = await fetchWithAuth('/api/auth/me/');
         if (userRes.ok) {
           const u = await userRes.json();
           if (u.role) {
@@ -290,15 +297,15 @@ const HomePage = ({ onLogout }) => {
       let recRes = null;
       if (token) {
         try {
-          recRes = await fetchWithAuth(`http://localhost:8000/api/recommendations/?filter=${activeRecFilter}${cityQuery}`);
+          recRes = await fetchWithAuth(`/api/recommendations/?filter=${activeRecFilter}${cityQuery}`);
         } catch (e) {}
       }
       if (!recRes || !recRes.ok) {
         try {
-          recRes = await fetch(`http://localhost:8000/api/recommendations/?filter=${activeRecFilter}${cityQuery}`);
+          recRes = await publicFetch(`/api/recommendations/?filter=${activeRecFilter}${cityQuery}`);
         } catch (e1) {
           try {
-            recRes = await fetch(`http://127.0.0.1:8000/api/recommendations/?filter=${activeRecFilter}${cityQuery}`);
+            recRes = await publicFetch(`/api/recommendations/?filter=${activeRecFilter}${cityQuery}`);
           } catch (e2) {
             recRes = await fetch(`/api/recommendations/?filter=${activeRecFilter}${cityQuery}`).catch(() => null);
           }
@@ -313,10 +320,10 @@ const HomePage = ({ onLogout }) => {
       const catCityQuery = selectedCity ? `?city=${encodeURIComponent(selectedCity)}` : '';
       let appRes = null;
       try {
-        appRes = await fetch(`http://localhost:8000/api/appliances/${catCityQuery}`);
+        appRes = await publicFetch(`/api/appliances/${catCityQuery}`);
       } catch (e1) {
         try {
-          appRes = await fetch(`http://127.0.0.1:8000/api/appliances/${catCityQuery}`);
+          appRes = await publicFetch(`/api/appliances/${catCityQuery}`);
         } catch (e2) {
           appRes = await fetch(`/api/appliances/${catCityQuery}`).catch(() => null);
         }
@@ -329,7 +336,7 @@ const HomePage = ({ onLogout }) => {
       // Cart count
       if (token) {
         try {
-          const cartRes = await fetchWithAuth('http://localhost:8000/api/cart/');
+          const cartRes = await fetchWithAuth('/api/cart/');
           if (cartRes.ok) {
             const cartData = await cartRes.json();
             setCartCount(Array.isArray(cartData) ? cartData.length : 0);
@@ -352,13 +359,13 @@ const HomePage = ({ onLogout }) => {
       const cityQuery = targetCity ? `&city=${encodeURIComponent(targetCity)}` : '';
       let recRes = null;
       try {
-        recRes = await fetchWithAuth(`http://localhost:8000/api/recommendations/?filter=${filterKey}${cityQuery}`);
+        recRes = await fetchWithAuth(`/api/recommendations/?filter=${filterKey}${cityQuery}`);
       } catch (authErr) {
         try {
-          recRes = await fetch(`http://localhost:8000/api/recommendations/?filter=${filterKey}${cityQuery}`);
+          recRes = await publicFetch(`/api/recommendations/?filter=${filterKey}${cityQuery}`);
         } catch (e1) {
           try {
-            recRes = await fetch(`http://127.0.0.1:8000/api/recommendations/?filter=${filterKey}${cityQuery}`);
+            recRes = await publicFetch(`/api/recommendations/?filter=${filterKey}${cityQuery}`);
           } catch (e2) {
             recRes = await fetch(`/api/recommendations/?filter=${filterKey}${cityQuery}`).catch(() => null);
           }
@@ -366,7 +373,7 @@ const HomePage = ({ onLogout }) => {
       }
       if (!recRes || !recRes.ok) {
         try {
-          recRes = await fetch(`http://127.0.0.1:8000/api/recommendations/?filter=${filterKey}${cityQuery}`);
+          recRes = await publicFetch(`/api/recommendations/?filter=${filterKey}${cityQuery}`);
         } catch (e) {
           recRes = await fetch(`/api/recommendations/?filter=${filterKey}${cityQuery}`).catch(() => null);
         }
@@ -450,7 +457,7 @@ const HomePage = ({ onLogout }) => {
       if (extraData) {
         payload.bundle_data = extraData;
       }
-      const res = await fetchWithAuth('http://localhost:8000/api/cart/', {
+      const res = await fetchWithAuth('/api/cart/', {
         method: 'POST',
         body: JSON.stringify(payload)
       });
@@ -463,7 +470,7 @@ const HomePage = ({ onLogout }) => {
         }, 2000);
       } else {
         const err = await res.json().catch(() => ({}));
-        alert(err.error || "Failed to add to cart");
+        showToast.error(err.error || "Failed to add to cart", "Cart Error");
       }
     } catch (error) {
       console.error("Error adding to cart:", error);
@@ -490,10 +497,7 @@ const HomePage = ({ onLogout }) => {
     await addToCart(comboApplianceId, "6", bundleData);
   };
 
-  const handleAddUNLMTDBundle = async (bundleProduct) => {
-    await addToCart(bundleProduct.appliance_id, "12", bundleProduct);
-  };
-
+  
   const toggleWishlist = (id, e) => {
     e.stopPropagation();
     setWishlist(prev => ({ ...prev, [id]: !prev[id] }));
@@ -609,13 +613,6 @@ const HomePage = ({ onLogout }) => {
         currentCity={city}
       />
 
-      {/* UNLMTD Whole-Home Subscription Builder Modal (Rentora Signature) */}
-      <UNLMTDSubscriptionModal
-        isOpen={showUNLMTDModal}
-        onClose={() => setShowUNLMTDModal(false)}
-        appliances={appliances}
-        onAddBundleToCart={handleAddUNLMTDBundle}
-      />
 
       {/* Product Details / Tenure Modal */}
       {selectedProduct && (
@@ -1086,6 +1083,10 @@ const HomePage = ({ onLogout }) => {
                                   src={item.image_url || 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?auto=format&fit=crop&q=80&w=200'} 
                                   alt={item.rental_name || 'Appliance'} 
                                   style={{ width: '42px', height: '42px', objectFit: 'cover', borderRadius: '8px', border: '1px solid #e2e8f0' }} 
+                                  onError={(e) => {
+                                    e.currentTarget.onerror = null;
+                                    e.currentTarget.src = 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?auto=format&fit=crop&q=80&w=200';
+                                  }} 
                                 />
                                 <div>
                                   <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#1e293b', lineHeight: 1.2 }}>
@@ -1183,7 +1184,7 @@ const HomePage = ({ onLogout }) => {
             <button
               type="button"
               id="unlmtd-plans-btn"
-              onClick={() => setShowUNLMTDModal(true)}
+              onClick={() => scrollToRoomCombos()}
               style={{
                 background: 'linear-gradient(135deg, #111827 0%, #1f2937 100%)',
                 color: '#ffffff',
@@ -1429,6 +1430,38 @@ const HomePage = ({ onLogout }) => {
                   >
                     <ShieldCheck size={15} color="#10b981" />
                     <span>Identity KYC Verification</span>
+                  </button>
+
+                  {/* Recently Viewed Shortcut */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowUserMenu(false);
+                      const sec = document.getElementById('recently-viewed-section');
+                      if (sec) {
+                        sec.scrollIntoView({ behavior: 'smooth' });
+                      }
+                    }}
+                    style={{
+                      padding: '0.5rem 0.65rem',
+                      textAlign: 'left',
+                      background: 'transparent',
+                      border: 'none',
+                      borderRadius: '8px',
+                      cursor: 'pointer',
+                      fontSize: '0.825rem',
+                      fontWeight: 600,
+                      color: '#334155',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.5rem',
+                      transition: 'background 0.15s ease'
+                    }}
+                    onMouseOver={(e) => { e.currentTarget.style.background = '#f8fafc'; }}
+                    onMouseOut={(e) => { e.currentTarget.style.background = 'transparent'; }}
+                  >
+                    <History size={15} color="#0284c7" />
+                    <span>Recently Viewed Items</span>
                   </button>
 
                   {/* Owner Portal Option */}
@@ -1745,7 +1778,7 @@ const HomePage = ({ onLogout }) => {
             <div style={{ display: 'flex', gap: '1.25rem', flexWrap: 'wrap', alignItems: 'center' }}>
               <button
                 type="button"
-                onClick={() => setShowUNLMTDModal(true)}
+                onClick={() => scrollToRoomCombos()}
                 style={{
                   background: '#e23744',
                   color: '#ffffff',
@@ -1796,14 +1829,14 @@ const HomePage = ({ onLogout }) => {
               POPULAR SUBSCRIPTIONS:
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-              <div onClick={() => setShowUNLMTDModal(true)} style={{ cursor: 'pointer', background: 'rgba(255,255,255,0.06)', padding: '0.75rem', borderRadius: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div onClick={() => scrollToRoomCombos()} style={{ cursor: 'pointer', background: 'rgba(255,255,255,0.06)', padding: '0.75rem', borderRadius: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div>
                   <div style={{ fontWeight: 800, fontSize: '0.85rem' }}>1 BHK (3 Items)</div>
                   <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>Studio Starter</div>
                 </div>
                 <div style={{ fontWeight: 900, color: '#f87171', fontSize: '1rem' }}>₹1,899/mo</div>
               </div>
-              <div onClick={() => setShowUNLMTDModal(true)} style={{ cursor: 'pointer', background: 'rgba(226,55,68,0.15)', border: '1px solid rgba(226,55,68,0.3)', padding: '0.75rem', borderRadius: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div onClick={() => scrollToRoomCombos()} style={{ cursor: 'pointer', background: 'rgba(226,55,68,0.15)', border: '1px solid rgba(226,55,68,0.3)', padding: '0.75rem', borderRadius: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div>
                   <div style={{ fontWeight: 800, fontSize: '0.85rem' }}>2 BHK (5 Items) 🔥</div>
                   <div style={{ fontSize: '0.75rem', color: '#fca5a5' }}>Most Popular</div>
@@ -1816,7 +1849,7 @@ const HomePage = ({ onLogout }) => {
       </section>
 
       {/* RENTORA ASSURANCE & CORE VALUE PILLARS (Signature Rentora Benefits) */}
-      <AssuranceBanner onOpenUNLMTD={() => setShowUNLMTDModal(true)} />
+      <AssuranceBanner onOpenUNLMTD={() => scrollToRoomCombos()} />
 
       {/* CURATED ROOM COMBOS (Rentora 1-Click Room Packages) */}
       <CuratedRoomCombos onRentCombo={handleRentCombo} />
@@ -1990,6 +2023,10 @@ const HomePage = ({ onLogout }) => {
                         src={app.image_url} 
                         alt={app.rental_name} 
                         style={{ width: '100%', height: '100%', objectFit: 'contain', padding: '0.5rem' }} 
+                        onError={(e) => {
+                          e.currentTarget.onerror = null;
+                          e.currentTarget.src = 'https://images.unsplash.com/photo-1556911220-e15b29be8c8f?auto=format&fit=crop&q=80&w=600';
+                        }} 
                       />
                     </div>
 
@@ -2103,6 +2140,18 @@ const HomePage = ({ onLogout }) => {
           )}
         </section>
       )}
+
+      {/* ========================================================
+          5B. RECENTLY VIEWED APPLIANCES (Browsing History Module)
+          ======================================================== */}
+      <RecentlyViewedSection 
+        onSelectAppliance={(app) => {
+          trackApplianceView(app, 'recently_viewed_click');
+          setSelectedProduct(app);
+        }} 
+        onAddToCart={addToCart} 
+        city={city} 
+      />
 
       {/* ========================================================
           3. SCREENSHOT 2: LISTING & FILTER EXPERIENCE
@@ -2545,7 +2594,10 @@ const HomePage = ({ onLogout }) => {
                     <div 
                       key={item.appliance_id || idx}
                       className="product-card panel"
-                      onClick={() => setSelectedProduct(item)}
+                      onClick={() => {
+                        trackApplianceView(item, 'catalog_click');
+                        setSelectedProduct(item);
+                      }}
                       style={{
                         background: 'var(--surface-color)',
                         border: '1px solid var(--border-color)',
@@ -2622,6 +2674,10 @@ const HomePage = ({ onLogout }) => {
                           }}
                           onMouseOver={(e) => { e.currentTarget.style.transform = 'scale(1.05)'; }}
                           onMouseOut={(e) => { e.currentTarget.style.transform = 'scale(1)'; }}
+                          onError={(e) => {
+                            e.currentTarget.onerror = null;
+                            e.currentTarget.src = 'https://images.unsplash.com/photo-1556911220-e15b29be8c8f?auto=format&fit=crop&q=80&w=600';
+                          }}
                         />
 
                         {/* Delivery Banner Strip (Screenshot 2 exact banner) */}
@@ -2709,46 +2765,84 @@ const HomePage = ({ onLogout }) => {
                             )}
                           </div>
 
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setSelectedProduct(item);
-                            }}
-                            disabled={isOutOfStock && storeMode === 'rent'}
-                            style={{
-                              background: isAdded
-                                ? '#16a34a'
-                                : (isOutOfStock && storeMode === 'rent')
-                                  ? '#94a3b8'
-                                  : storeMode === 'rent'
-                                    ? 'var(--primary-color)'
-                                    : 'var(--secondary-color)',
-                              color: '#ffffff',
-                              border: 'none',
-                              borderRadius: '8px',
-                              padding: '0.5rem 1rem',
-                              fontSize: '0.8rem',
-                              fontWeight: 700,
-                              cursor: (isOutOfStock && storeMode === 'rent') ? 'not-allowed' : 'pointer',
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: '0.3rem',
-                              boxShadow: (isOutOfStock && storeMode === 'rent')
-                                ? 'none'
-                                : isAdded
-                                  ? '0 2px 6px rgba(22, 163, 74, 0.3)'
-                                  : '0 2px 6px rgba(226, 55, 68, 0.25)',
-                              transition: 'all 0.15s ease'
-                            }}
-                          >
-                            {isAdded
-                              ? <Check size={14} />
-                              : (isOutOfStock && storeMode === 'rent')
-                                ? 'Out of Stock'
-                                : storeMode === 'rent'
-                                  ? 'Rent'
-                                  : 'Buy Now'}
-                          </button>
+                          <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                trackApplianceView(item, 'quick_view');
+                                setSelectedProduct(item);
+                              }}
+                              style={{
+                                background: 'var(--surface-color)',
+                                color: 'var(--text-secondary)',
+                                border: '1px solid var(--border-color)',
+                                borderRadius: '8px',
+                                padding: '0.48rem 0.65rem',
+                                fontSize: '0.75rem',
+                                fontWeight: 700,
+                                cursor: 'pointer',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '0.25rem',
+                                transition: 'all 0.15s ease'
+                              }}
+                              title="Quick View specifications, reviews and tenure pricing"
+                            >
+                              <Eye size={13} />
+                              <span>Quick View</span>
+                            </button>
+
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (storeMode === 'rent') {
+                                  addToCart(item.appliance_id || item._id, "3", item);
+                                } else {
+                                  setSelectedProduct(item);
+                                }
+                              }}
+                              disabled={isOutOfStock && storeMode === 'rent'}
+                              style={{
+                                background: isAdded
+                                  ? '#16a34a'
+                                  : (isOutOfStock && storeMode === 'rent')
+                                    ? '#94a3b8'
+                                    : storeMode === 'rent'
+                                      ? 'var(--primary-color)'
+                                      : 'var(--secondary-color)',
+                                color: '#ffffff',
+                                border: 'none',
+                                borderRadius: '8px',
+                                padding: '0.48rem 0.85rem',
+                                fontSize: '0.78rem',
+                                fontWeight: 700,
+                                cursor: (isOutOfStock && storeMode === 'rent') ? 'not-allowed' : 'pointer',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '0.3rem',
+                                boxShadow: (isOutOfStock && storeMode === 'rent')
+                                  ? 'none'
+                                  : isAdded
+                                    ? '0 2px 6px rgba(22, 163, 74, 0.3)'
+                                    : '0 2px 6px rgba(226, 55, 68, 0.25)',
+                                transition: 'all 0.15s ease'
+                              }}
+                            >
+                              {isAdded ? (
+                                <>
+                                  <Check size={14} />
+                                  <span>Added</span>
+                                </>
+                              ) : (isOutOfStock && storeMode === 'rent') ? (
+                                'Out of Stock'
+                              ) : storeMode === 'rent' ? (
+                                '+ Add'
+                              ) : (
+                                'Buy Now'
+                              )}
+                            </button>
+                          </div>
                         </div>
                       </div>
                     </div>

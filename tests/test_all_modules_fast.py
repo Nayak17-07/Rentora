@@ -1,5 +1,6 @@
 import os
 import sys
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import time
 import uuid
 import requests
@@ -174,7 +175,7 @@ def main():
     total_time = round(time.time() - start_time, 2)
     print_header("System Verification Summary")
     print(f"  All 14 Steps across all 8 Modules completed successfully in {total_time}s!")
-    print(f"  Database: 100% Pure MongoDB (rentai_db)")
+    print(f"  Database: 100% Pure MongoDB (rentora_db)")
     print(f"  AI Layer: LightGBM (Churn) + TF-IDF Cosine Similarity (Recommender)")
     print("=" * 76 + "\n")
 

@@ -37,18 +37,22 @@ function CitySelectionModal({ onCitySelect, isOpen, onClose, currentCity }) {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        padding: '1rem'
+        padding: '1rem',
+        overflowY: 'auto'
       }}
     >
       <div style={{
         maxWidth: '560px',
         width: '100%',
+        maxHeight: '90vh',
+        overflowY: 'auto',
         padding: '2.5rem 2rem',
         textAlign: 'center',
         background: 'white',
         borderRadius: '1.5rem',
         boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
         position: 'relative',
+        margin: 'auto',
         animation: 'modalPop 0.25s cubic-bezier(0.16, 1, 0.3, 1)'
       }}>
         {/* Close Button */}
@@ -124,7 +128,8 @@ function CitySelectionModal({ onCitySelect, isOpen, onClose, currentCity }) {
                   flexDirection: 'column',
                   alignItems: 'center',
                   gap: '0.35rem',
-                  position: 'relative'
+                  position: 'relative',
+        margin: 'auto'
                 }}
                 onMouseOver={(e) => {
                   if (!isSelected) {

@@ -55,6 +55,18 @@ const KNOWLEDGE_BASE = {
     summary: "Tenant verification is fast, digital, and 100% paperless! Every customer completes UIDAI Aadhaar verification in under 60 seconds to satisfy mandatory compliance for order approval, doorstep appliance delivery, and 100% refundable escrow deposit protection.",
     action: { type: 'NAVIGATE_KYC', label: '🔐 Complete Mandatory KYC' },
     followUps: ["🔐 Go to KYC Page", "💰 Deposit Refund Rules", "💡 Explore Catalog"]
+  },
+  late_fee: {
+    title: "⏱️ Automated Late Fee and Overdue Rental Policy",
+    summary: "Rentora provides a 2-day grace period after your scheduled rental contract expiry or billing date. If the appliance is not renewed or returned after the grace period, our automated scheduler assesses a standard overdue fee of Rs. 50 per calendar day. Overdue late fees are transparently offset against your refundable security deposit upon asset return.",
+    action: { type: 'NAVIGATE_RENTALS', label: '📦 View Active Leases and Due Dates' },
+    followUps: ["⚡ Extend Tenure (Save 20%)", "📦 View Active Rentals", "💰 Deposit Refund Rules"]
+  },
+  digital_agreement: {
+    title: "📄 Digital Rental Agreement and Legal e-Sign (Module 4)",
+    summary: "Every booking on Rentora is legally secured under the Information Technology Act, 2000 and the Indian Stamp Act, 1899. Your digital lease agreement includes an official e-Stamp reference, segregated RBI escrow custody ID, Rs. 10,000 damage waiver covenant, and cryptographic SHA-256 signature verification. You can view, verify, and print your signed agreement anytime under My Rentals.",
+    action: { type: 'NAVIGATE_RENTALS', label: '📄 View Signed Digital Agreement' },
+    followUps: ["📦 View My Rentals", "🛡️ Damage Waiver Policy", "💎 Rent-to-Own Equity"]
   }
 };
 
@@ -85,7 +97,9 @@ const INTENT_KEYWORDS = {
   deposit_refund: ['deposit', 'refund', 'return', 'money', 'back', 'escrow', 'deduction', 'guarantee'],
   delivery: ['delivery', 'deliver', 'track', 'tracking', 'status', 'van', 'vehicle', 'otp', 'installation', 'eta', 'when', 'arrives', 'courier'],
   pincode: ['pincode', 'area', 'locality', 'location', 'serviceable', 'service', 'deliverable', 'cities'],
-  kyc: ['kyc', 'aadhaar', 'verification', 'verify', 'identity', 'document', 'proof', 'ekyc', 'approved']
+    kyc: ['kyc', 'aadhaar', 'verification', 'verify', 'identity', 'document', 'proof', 'ekyc', 'approved'],
+  late_fee: ['late', 'fee', 'penalty', 'delay', 'overdue', 'expire', 'expiry', 'grace', 'fine', 'extra', 'charges'],
+  digital_agreement: ['agreement', 'contract', 'esign', 'e-sign', 'signature', 'stamp', 'legal', 'document', 'terms', 'lease']
 };
 
 // POST /api/concierge/chat

@@ -1,17 +1,66 @@
 /**
- * fetchWithAuth
- * Wraps fetch() with automatic JWT access-token injection, multi-host network fallback,
- * and silent token refresh.
- * On full token expiry (access + refresh both invalid) it navigates to
- * /session-expired so the user sees a proper "You've been signed out" screen
- * instead of a blank login redirect.
+ * API Utility Module
+ * Provides centralized URL resolution, automatic JWT token management,
+ * silent refresh tokens, and network fallback between localhost/127.0.0.1/proxy.
+ */
+
+export const API_BASE = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_URL) ? import.meta.env.VITE_API_URL : '';
+
+/**
+ * Normalizes any relative or localhost URL into the canonical API route.
+ * Handles Vite proxy in dev (/api/...) and explicit VITE_API_URL in production.
+ */
+export const getApiUrl = (url) => {
+  if (!url) return '';
+  if (url.startsWith('/')) {
+    return API_BASE ? `${API_BASE}${url}` : url;
+  }
+  if (url.includes('localhost:8000') || url.includes('127.0.0.1:8000')) {
+    const relative = url.replace(/^https?:\/\/(localhost|127\.0\.0\.1):8000/, '');
+    return API_BASE ? `${API_BASE}${relative}` : relative;
+  }
+  return url;
+};
+
+/**
+ * publicFetch - Wraps standard fetch with dynamic URL resolution and fallback.
+ */
+export const publicFetch = async (url, options = {}) => {
+  const normalizedUrl = getApiUrl(url);
+  try {
+    return await fetch(normalizedUrl, {
+      credentials: 'include',
+      ...options,
+    });
+  } catch (netErr) {
+    if (typeof normalizedUrl === 'string' && normalizedUrl.startsWith('/api')) {
+      try {
+        return await fetch(`http://127.0.0.1:8000${normalizedUrl}`, {
+          credentials: 'include',
+          ...options,
+        });
+      } catch (e2) {
+        return await fetch(`http://localhost:8000${normalizedUrl}`, {
+          credentials: 'include',
+          ...options,
+        });
+      }
+    }
+    throw netErr;
+  }
+};
+
+/**
+ * fetchWithAuth - Wraps fetch() with automatic JWT access-token injection,
+ * silent token refresh, and multi-endpoint fallback.
  */
 export const fetchWithAuth = async (url, options = {}) => {
   let token = localStorage.getItem('access_token');
 
   const buildHeaders = (t) => {
+    const isFormData = typeof FormData !== 'undefined' && options.body instanceof FormData;
     const headers = {
-      'Content-Type': 'application/json',
+      ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
       ...options.headers,
     };
     if (t && t !== 'null' && t !== 'undefined') {
@@ -21,24 +70,23 @@ export const fetchWithAuth = async (url, options = {}) => {
   };
 
   const executeFetch = async (targetUrl) => {
+    const normalizedUrl = getApiUrl(targetUrl);
     try {
-      return await fetch(targetUrl, {
+      return await fetch(normalizedUrl, {
         credentials: 'include',
         ...options,
         headers: buildHeaders(token),
       });
     } catch (netErr) {
-      if (typeof targetUrl === 'string' && targetUrl.includes('localhost:8000')) {
-        const fallback127 = targetUrl.replace('localhost:8000', '127.0.0.1:8000');
+      if (typeof normalizedUrl === 'string' && normalizedUrl.startsWith('/api')) {
         try {
-          return await fetch(fallback127, {
+          return await fetch(`http://127.0.0.1:8000${normalizedUrl}`, {
             credentials: 'include',
             ...options,
             headers: buildHeaders(token),
           });
         } catch (e2) {
-          const proxyUrl = targetUrl.replace(/^http:\/\/localhost:8000/, '');
-          return await fetch(proxyUrl, {
+          return await fetch(`http://localhost:8000${normalizedUrl}`, {
             credentials: 'include',
             ...options,
             headers: buildHeaders(token),
@@ -65,13 +113,14 @@ export const fetchWithAuth = async (url, options = {}) => {
           body: refreshBody
         };
 
+        const refreshUrl = getApiUrl('/api/token/refresh/');
         try {
-          refreshRes = await fetch('http://localhost:8000/api/token/refresh/', refreshOpts);
+          refreshRes = await fetch(refreshUrl, refreshOpts);
         } catch (e1) {
           try {
             refreshRes = await fetch('http://127.0.0.1:8000/api/token/refresh/', refreshOpts);
           } catch (e2) {
-            refreshRes = await fetch('/api/token/refresh/', refreshOpts).catch(() => null);
+            refreshRes = await fetch('http://localhost:8000/api/token/refresh/', refreshOpts).catch(() => null);
           }
         }
 

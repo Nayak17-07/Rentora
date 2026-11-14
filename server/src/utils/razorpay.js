@@ -12,9 +12,9 @@ try {
  * sandbox simulation for seamless development and testing environments.
  */
 
-const RAZORPAY_KEY_ID = process.env.RAZORPAY_KEY_ID || 'rzp_test_rentoraLiveGateway';
-const RAZORPAY_KEY_SECRET = process.env.RAZORPAY_KEY_SECRET || process.env.SECRET_KEY || 'rentora_razorpay_secret_key_2026';
-const RAZORPAY_WEBHOOK_SECRET = process.env.RAZORPAY_WEBHOOK_SECRET || process.env.SECRET_KEY || 'rentora_razorpay_webhook_secret_2026';
+const RAZORPAY_KEY_ID = process.env.RAZORPAY_KEY_ID || '';
+const RAZORPAY_KEY_SECRET = process.env.RAZORPAY_KEY_SECRET || process.env.SECRET_KEY || '';
+const RAZORPAY_WEBHOOK_SECRET = process.env.RAZORPAY_WEBHOOK_SECRET || '';
 
 // Initialize Razorpay SDK instance if keys and SDK are present
 let razorpayInstance = null;
@@ -22,8 +22,8 @@ const isLiveConfigured = Boolean(
   RazorpaySdk && 
   RAZORPAY_KEY_ID && 
   RAZORPAY_KEY_SECRET && 
-  !RAZORPAY_KEY_ID.includes('rentoraLive') && 
-  !RAZORPAY_KEY_ID.includes('placeholder')
+  !RAZORPAY_KEY_ID.includes('placeholder') &&
+  !RAZORPAY_KEY_ID.includes('your_key_id')
 );
 
 if (isLiveConfigured) {
@@ -32,12 +32,12 @@ if (isLiveConfigured) {
       key_id: RAZORPAY_KEY_ID,
       key_secret: RAZORPAY_KEY_SECRET
     });
-    console.log('[Razorpay] Initialized official Razorpay SDK client with Key ID:', RAZORPAY_KEY_ID.slice(0, 10) + '...');
+    console.log('[Razorpay] Initialized Razorpay SDK client with Key ID:', RAZORPAY_KEY_ID.slice(0, 10) + '...');
   } catch (err) {
     console.warn('[Razorpay] Failed to initialize Razorpay SDK client:', err.message);
   }
 } else {
-  console.log('[Razorpay] Running in High-Entropy Enterprise Sandbox Mode (Key: ' + RAZORPAY_KEY_ID + ')');
+  console.log('[Razorpay] Running in High-Entropy Enterprise Sandbox Mode');
 }
 
 /**
@@ -108,7 +108,7 @@ async function createOrder({ amount, currency = 'INR', receipt, notes = {} }) {
  * @param {string} params.payment_id
  * @param {string} params.signature
  */
-function verifySignature({ order_id, payment_id, signature }) {
+function verifySignature({ order_id, payment_id, signature, secret = RAZORPAY_KEY_SECRET }) {
   if (!order_id || !payment_id || !signature) {
     return {
       isValid: false,
@@ -116,39 +116,39 @@ function verifySignature({ order_id, payment_id, signature }) {
     };
   }
 
-  const payload = `${order_id}|${payment_id}`;
-  const actBuf = Buffer.from(String(signature).trim(), 'utf8');
-
-  // Check candidate secrets: primary configured RAZORPAY_KEY_SECRET, then fallbacks
-  const candidateSecrets = [
-    RAZORPAY_KEY_SECRET,
-    'rentora_razorpay_secret_key_2026',
-    process.env.SECRET_KEY,
-    'rentora_sec_key_2026'
-  ].filter(Boolean);
-
-  let isValid = false;
-  for (const s of candidateSecrets) {
-    const expSig = crypto.createHmac('sha256', s).update(payload).digest('hex');
-    const expBuf = Buffer.from(expSig, 'utf8');
-    if (expBuf.length === actBuf.length && crypto.timingSafeEqual(expBuf, actBuf)) {
-      isValid = true;
-      break;
-    }
+  const effectiveSecret = secret || process.env.RAZORPAY_KEY_SECRET || process.env.SECRET_KEY;
+  if (!effectiveSecret) {
+    return {
+      isValid: false,
+      error: 'Razorpay key secret is not configured on server'
+    };
   }
 
-  return {
-    isValid,
-    order_id,
-    payment_id,
-    algorithm: 'HMAC-SHA256'
-  };
+  const payload = `${order_id}|${payment_id}`;
+  try {
+    const actBuf = Buffer.from(String(signature).trim(), 'utf8');
+    const expSig = crypto.createHmac('sha256', effectiveSecret).update(payload).digest('hex');
+    const expBuf = Buffer.from(expSig, 'utf8');
+
+    const isValid = expBuf.length === actBuf.length && crypto.timingSafeEqual(expBuf, actBuf);
+    return {
+      isValid,
+      order_id,
+      payment_id,
+      algorithm: 'HMAC-SHA256'
+    };
+  } catch (err) {
+    return {
+      isValid: false,
+      error: 'Error evaluating cryptographic signature'
+    };
+  }
 }
 
 /**
  * Generate HMAC-SHA256 signature for test/simulation
  */
-function generateTestSignature(orderId, paymentId, secret = RAZORPAY_KEY_SECRET) {
+function generateTestSignature(orderId, paymentId, secret = (RAZORPAY_KEY_SECRET || process.env.SECRET_KEY || '')) {
   return crypto
     .createHmac('sha256', secret)
     .update(`${orderId}|${paymentId}`)
@@ -161,33 +161,19 @@ function generateTestSignature(orderId, paymentId, secret = RAZORPAY_KEY_SECRET)
  * @param {string} signature - Header 'x-razorpay-signature'
  * @param {string} [secret]
  */
-function verifyWebhookSignature(rawBody, signature, secret = RAZORPAY_WEBHOOK_SECRET) {
-  if (!signature) return false;
+function verifyWebhookSignature(rawBody, signature, secret = (RAZORPAY_WEBHOOK_SECRET || RAZORPAY_KEY_SECRET || process.env.SECRET_KEY)) {
+  if (!signature || !secret) return false;
 
-  const actBuf = Buffer.from(String(signature).trim(), 'utf8');
-  const candidateSecrets = [secret, RAZORPAY_KEY_SECRET, process.env.SECRET_KEY, 'rentora_webhook_secret'].filter(Boolean);
-  
-  const candidateBodies = [];
-  if (typeof rawBody === 'string') {
-    candidateBodies.push(rawBody);
-  } else {
-    candidateBodies.push(JSON.stringify(rawBody));
-    try {
-      candidateBodies.push(JSON.stringify(rawBody, null, 2));
-    } catch (e) {}
+  try {
+    const actBuf = Buffer.from(String(signature).trim(), 'utf8');
+    const bodyStr = typeof rawBody === 'string' ? rawBody : JSON.stringify(rawBody);
+    const expSig = crypto.createHmac('sha256', secret).update(bodyStr).digest('hex');
+    const expBuf = Buffer.from(expSig, 'utf8');
+
+    return expBuf.length === actBuf.length && crypto.timingSafeEqual(expBuf, actBuf);
+  } catch (err) {
+    return false;
   }
-
-  for (const s of candidateSecrets) {
-    for (const bodyStr of candidateBodies) {
-      const expSig = crypto.createHmac('sha256', s).update(bodyStr).digest('hex');
-      const expBuf = Buffer.from(expSig, 'utf8');
-      if (expBuf.length === actBuf.length && crypto.timingSafeEqual(expBuf, actBuf)) {
-        return true;
-      }
-    }
-  }
-
-  return false;
 }
 
 /**

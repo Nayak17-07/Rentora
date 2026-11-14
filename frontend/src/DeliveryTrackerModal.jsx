@@ -1,3 +1,4 @@
+import { showToast } from './utils/toast';
 import React, { useState, useEffect } from 'react';
 import { 
   X, 
@@ -20,7 +21,7 @@ import {
   Zap,
   RefreshCw
 } from 'lucide-react';
-import { fetchWithAuth } from './utils/api';
+import { fetchWithAuth, publicFetch } from './utils/api';
 
 const STAGES = [
   { key: 'ORDER_CONFIRMED', label: 'Order Confirmed', icon: CheckCircle2 },
@@ -31,7 +32,7 @@ const STAGES = [
 ];
 
 const DeliveryTrackerModal = ({ isOpen, onClose, rental, onRentalUpdated }) => {
-  const [activeView, setActiveView] = useState('live_map'); // 'live_map' | 'stepper'
+  const [activeView, setActiveView] = useState('stepper'); // 'live_map' | 'stepper'
   const [copied, setCopied] = useState(false);
   const [isRescheduling, setIsRescheduling] = useState(false);
   const [rescheduleSlot, setRescheduleSlot] = useState(
@@ -53,7 +54,7 @@ const DeliveryTrackerModal = ({ isOpen, onClose, rental, onRentalUpdated }) => {
     if (!rentalId) return;
     try {
       setGpsLoading(true);
-      const res = await fetch(`http://localhost:8000/api/tracking/live/${rentalId}`);
+      const res = await publicFetch(`/api/tracking/live/${rentalId}`);
       if (res.ok) {
         const data = await res.json();
         setLiveGps(data);
@@ -91,7 +92,9 @@ const DeliveryTrackerModal = ({ isOpen, onClose, rental, onRentalUpdated }) => {
   const currentIdx = getStageIndex(currentStage);
 
   const handleCopyOtp = () => {
-    navigator.clipboard.writeText(otp);
+    if (navigator.clipboard?.writeText) {
+      navigator.clipboard.writeText(otp).catch(() => {});
+    }
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -100,7 +103,7 @@ const DeliveryTrackerModal = ({ isOpen, onClose, rental, onRentalUpdated }) => {
     e.preventDefault();
     setReschedulingLoading(true);
     try {
-      const res = await fetchWithAuth(`http://localhost:8000/api/rentals/${rentalId}/reschedule`, {
+      const res = await fetchWithAuth(`/api/rentals/${rentalId}/reschedule`, {
         method: 'PATCH',
         body: JSON.stringify({
           new_slot: rescheduleSlot,
@@ -118,11 +121,11 @@ const DeliveryTrackerModal = ({ isOpen, onClose, rental, onRentalUpdated }) => {
         setTimeout(() => setRescheduleSuccess(''), 4000);
       } else {
         const err = await res.json();
-        alert(err.error || 'Failed to reschedule delivery');
+        showToast.error(err.error || 'Failed to reschedule delivery', 'Reschedule Error');
       }
     } catch (err) {
       console.error('Error rescheduling:', err);
-      alert('Network error while rescheduling');
+      showToast.error('Network error while rescheduling', 'Network Error');
     } finally {
       setReschedulingLoading(false);
     }

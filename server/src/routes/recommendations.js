@@ -69,14 +69,43 @@ router.get('/recommendations/', optionalAuth, async (req, res) => {
     const targetApplianceId = req.query.appliance_id || null;
     const limit = Math.min(20, Math.max(1, parseInt(req.query.limit, 10) || 8));
 
-    // 1. Gather context: User Cart, User Active Rentals, and Target Appliance
+    // 1. Gather context: User Cart, User Active Rentals, Browsing History, and Target Appliance
     let userCartItems = [];
     let userActiveRentals = [];
     let targetAppliance = null;
 
+    // Identify user's interacted categories and existing appliance IDs
+    const existingApplianceIds = new Set();
+    const interactedSubCategories = [];
+    let totalRentSum = 0;
+    let rentCount = 0;
+
     if (userId) {
       userCartItems = await db.collection('carts').find({ user_id: userId }).toArray();
       userActiveRentals = await db.collection('rentals').find({ user_id: userId }).toArray();
+      try {
+        const recentBrowsed = await db.collection('browsing_history')
+          .find({ user_id: userId })
+          .sort({ last_viewed_at: -1 })
+          .limit(6)
+          .toArray();
+
+        for (const b of recentBrowsed) {
+          if (b.sub_category || b.category_id) {
+            interactedSubCategories.push({
+              id: b.appliance_id,
+              name: b.rental_name,
+              category: b.category_id,
+              subCategory: b.sub_category,
+              from_browsing: true
+            });
+            const p = parseFloat(b.monthly_price) || 0;
+            if (p > 0) { totalRentSum += p; rentCount++; }
+          }
+        }
+      } catch (err) {
+        console.warn('Browsing history recommendation feed warning (non-fatal):', err.message);
+      }
     }
 
     if (targetApplianceId) {
@@ -84,12 +113,6 @@ router.get('/recommendations/', optionalAuth, async (req, res) => {
         $or: [{ _id: targetApplianceId }, { appliance_id: targetApplianceId }]
       });
     }
-
-    // Identify user's interacted categories and existing appliance IDs
-    const existingApplianceIds = new Set();
-    const interactedSubCategories = [];
-    let totalRentSum = 0;
-    let rentCount = 0;
 
     for (const c of userCartItems) {
       const aid = String(c.appliance_id || c._id);
@@ -411,22 +434,34 @@ router.get('/recommendations/', optionalAuth, async (req, res) => {
   }
 });
 
-// POST /api/recommendations/recompute (Admin trigger to rerun batch recommendation pipeline)
+let isRecRecomputeRunning = false;
+
+// POST /api/recommendations/recompute (Non-blocking background batch recommendation training)
 router.post('/recommendations/recompute', authenticateJWT, requireRole('admin'), async (req, res) => {
-  try {
-    const { runPythonScript } = require('../utils/pythonRunner');
-    const result = await runPythonScript('ml_pipeline/train_model.py', [], 45000);
-    return res.status(200).json({ 
-      message: 'Batch recommendation engine completed successfully', 
-      output: result.stdout 
-    });
-  } catch (err) {
-    console.error('Recompute batch recommendations error:', err.message);
-    return res.status(500).json({ 
-      error: 'Failed to execute recommendation training pipeline', 
-      details: err.message 
+  if (isRecRecomputeRunning) {
+    return res.status(409).json({
+      error: 'Batch recommendation training is already running in background.',
+      status: 'RUNNING'
     });
   }
+
+  isRecRecomputeRunning = true;
+  const { runPythonScript } = require('../utils/pythonRunner');
+
+  runPythonScript('ml_pipeline/train_model.py', [], 90000)
+    .then((result) => {
+      console.log('[ML Pipeline] Batch recommendation model trained successfully.');
+      isRecRecomputeRunning = false;
+    })
+    .catch((err) => {
+      console.error('[ML Pipeline] Recommendation training error:', err.message);
+      isRecRecomputeRunning = false;
+    });
+
+  return res.status(202).json({ 
+    message: 'Batch recommendation training started in background. Catalog rankings will update shortly.', 
+    status: 'ACCEPTED' 
+  });
 });
 
 module.exports = router;

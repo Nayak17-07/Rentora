@@ -1,3 +1,4 @@
+import { publicFetch } from './utils/api';
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { 
@@ -76,21 +77,6 @@ const RegisterPage = ({ onLogin }) => {
     }
   }, [step]);
 
-  const fetchApi = async (url, opts) => {
-    try {
-      return await fetch(url, opts);
-    } catch (e1) {
-      if (typeof url === 'string' && url.includes('localhost:8000')) {
-        try {
-          return await fetch(url.replace('localhost:8000', '127.0.0.1:8000'), opts);
-        } catch (e2) {
-          return await fetch(url.replace(/^http:\/\/localhost:8000/, ''), opts);
-        }
-      }
-      throw e1;
-    }
-  };
-
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
@@ -103,7 +89,7 @@ const RegisterPage = ({ onLogin }) => {
     setSuccessMsg('');
 
     try {
-      const res = await fetchApi('http://localhost:8000/api/auth/send-signup-otp/', {
+      const res = await publicFetch('/api/auth/send-signup-otp/', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData)
@@ -217,7 +203,7 @@ const RegisterPage = ({ onLogin }) => {
     setError('');
 
     try {
-      const res = await fetchApi('http://localhost:8000/api/auth/verify-signup-otp/', {
+      const res = await publicFetch('/api/auth/verify-signup-otp/', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

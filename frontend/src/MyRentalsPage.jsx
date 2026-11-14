@@ -1,3 +1,4 @@
+import { showToast } from './utils/toast';
 import React, { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { 
@@ -24,6 +25,7 @@ import {
   MessageSquare,
   ShieldAlert,
   Award,
+  PauseCircle,
   Zap,
   Wifi,
   Download,
@@ -34,18 +36,21 @@ import { fetchWithAuth } from './utils/api';
 import { getSocket, joinUserRoom } from './utils/socket';
 import { downloadCsv } from './utils/exportCsv';
 import InvoiceReceiptModal from './InvoiceReceiptModal';
-import ExperienceSwapModal from './ExperienceSwapModal';
 import ThemeToggle from './ThemeToggle';
 import DeliveryTrackerModal from './DeliveryTrackerModal';
 import RentToOwnModal from './RentToOwnModal';
-import OwnershipCertificateModal from './OwnershipCertificateModal';
-import EscrowLedgerModal from './EscrowLedgerModal';
+import DigitalLeaseAgreementModal from './DigitalLeaseAgreementModal';
 import PaymentGatewayModal from './PaymentGatewayModal';
 
 const MyRentalsPage = ({ onLogout }) => {
   const [rentals, setRentals] = useState([]);
   const [payments, setPayments] = useState([]);
   const [complaints, setComplaints] = useState([]);
+  const [selectedAgreementRental, setSelectedAgreementRental] = useState(null);
+  const [pauseModalRental, setPauseModalRental] = useState(null);
+  const [pauseDays, setPauseDays] = useState(30);
+  const [pauseReason, setPauseReason] = useState('Vacation / Travel');
+  const [pausing, setPausing] = useState(false);
   const [catalog, setCatalog] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('rentals'); // 'rentals' | 'payments' | 'complaints'
@@ -57,7 +62,6 @@ const MyRentalsPage = ({ onLogout }) => {
   const [selectedInvoice, setSelectedInvoice] = useState(null);
   const [isInvoiceModalOpen, setIsInvoiceModalOpen] = useState(false);
   const [trackingModalRental, setTrackingModalRental] = useState(null);
-  const [escrowModalRental, setEscrowModalRental] = useState(null);
   
   // Return & Damage Assessment State (Module 6)
   const [returnModalRental, setReturnModalRental] = useState(null);
@@ -73,15 +77,20 @@ const MyRentalsPage = ({ onLogout }) => {
   const [complaintDesc, setComplaintDesc] = useState('');
   const [complaintSubmitting, setComplaintSubmitting] = useState(false);
 
+  // Customer Feedback & 5-Star Rating State (Module 8)
+  const [ratingModalRental, setRatingModalRental] = useState(null);
+  const [feedbackRating, setFeedbackRating] = useState(5);
+  const [feedbackComment, setFeedbackComment] = useState('');
+  const [feedbackSubmitting, setFeedbackSubmitting] = useState(false);
+  const [feedbackSuccessToast, setFeedbackSuccessToast] = useState(null);
+
   const [dateSlot, setDateSlot] = useState('');
   const [timeSlot, setTimeSlot] = useState('10:00 AM - 01:00 PM');
   const [relocationCity, setRelocationCity] = useState('Hyderabad');
   const [serviceNotes, setServiceNotes] = useState('');
-  const [swapModalRental, setSwapModalRental] = useState(null);
 
   // Rent-to-Own & Tenure Extension State (Module Upgrade)
   const [buyoutModalRental, setBuyoutModalRental] = useState(null);
-  const [certificateModalRental, setCertificateModalRental] = useState(null);
   const [buyoutSuccessAlert, setBuyoutSuccessAlert] = useState(null);
   const [tenureSuccessAlert, setTenureSuccessAlert] = useState(null);
 
@@ -97,10 +106,10 @@ const MyRentalsPage = ({ onLogout }) => {
   const fetchRentalsAndPayments = async () => {
     try {
       const [resRentals, resPayments, resCatalog, resComplaints] = await Promise.all([
-        fetchWithAuth('http://localhost:8000/api/rentals/'),
-        fetchWithAuth('http://localhost:8000/api/payments/'),
-        fetch('http://localhost:8000/api/appliances/'),
-        fetchWithAuth('http://localhost:8000/api/complaints/')
+        fetchWithAuth('/api/rentals/'),
+        fetchWithAuth('/api/payments/'),
+        fetchWithAuth('/api/appliances/'),
+        fetchWithAuth('/api/complaints/')
       ]);
       if (resRentals.ok) {
         const data = await resRentals.json();
@@ -242,7 +251,7 @@ const MyRentalsPage = ({ onLogout }) => {
     setIsMonthlyPayModalOpen(false);
     setPayingBillLoading(true);
     try {
-      const res = await fetchWithAuth('http://localhost:8000/api/payments/', {
+      const res = await fetchWithAuth('/api/payments/', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -273,7 +282,7 @@ const MyRentalsPage = ({ onLogout }) => {
 
   const handleBuyoutSuccess = (updatedRental) => {
     setBuyoutModalRental(null);
-    setCertificateModalRental(updatedRental);
+    setSelectedInvoice(updatedRental); setIsInvoiceModalOpen(true);
     setBuyoutSuccessAlert({
       title: "Permanent Ownership Transferred Successfully! 💎",
       message: `You now own ${updatedRental.appliance?.rental_name || 'your appliance'} with zero future rent! Official title deed and certificate generated.`,
@@ -310,7 +319,7 @@ const MyRentalsPage = ({ onLogout }) => {
     if (!returnModalRental) return;
     setReturningLoading(true);
     try {
-      const res = await fetchWithAuth('http://localhost:8000/api/rentals/', {
+      const res = await fetchWithAuth('/api/rentals/', {
         method: 'PATCH',
         body: JSON.stringify({
           rental_id: returnModalRental.rental_id,
@@ -331,11 +340,11 @@ const MyRentalsPage = ({ onLogout }) => {
         fetchRentalsAndPayments();
       } else {
         const errData = await res.json().catch(() => ({}));
-        alert(errData.error || "Failed to process return. Please try again.");
+        showToast.error(errData.error || "Failed to process return. Please try again.", "Return Failed");
       }
     } catch (err) {
       console.error("Error returning rental:", err);
-      alert("Network error processing return. Please check your connection.");
+      showToast.error("Network error processing return. Please check your connection.", "Network Error");
     } finally {
       setReturningLoading(false);
     }
@@ -345,7 +354,7 @@ const MyRentalsPage = ({ onLogout }) => {
     e.preventDefault();
     setComplaintSubmitting(true);
     try {
-      const res = await fetchWithAuth('http://localhost:8000/api/complaints/', {
+      const res = await fetchWithAuth('/api/complaints/', {
         method: 'POST',
         body: JSON.stringify({
           subject: complaintSubject,
@@ -355,7 +364,7 @@ const MyRentalsPage = ({ onLogout }) => {
       });
       if (res.ok) {
         const data = await res.json();
-        alert(`Grievance Ticket ${data.complaint.ticket_id} submitted! Support team will reach out within 2 hours.`);
+        showToast.success(`Grievance Ticket ${data.complaint.ticket_id} submitted! Support team will reach out within 2 hours.`, "Ticket Submitted");
         setIsComplaintModalOpen(false);
         setComplaintSubject('');
         setComplaintDesc('');
@@ -365,6 +374,101 @@ const MyRentalsPage = ({ onLogout }) => {
       console.error("Error creating complaint:", err);
     } finally {
       setComplaintSubmitting(false);
+    }
+  };
+
+  const handleOpenFeedbackModal = (rental) => {
+    setRatingModalRental(rental);
+    setFeedbackRating(5);
+    setFeedbackComment('');
+  };
+
+  const handleSubmitFeedback = async (e) => {
+    e.preventDefault();
+    if (!ratingModalRental) return;
+    setFeedbackSubmitting(true);
+    try {
+      const appId = ratingModalRental.appliance_id || ratingModalRental.appliance?.appliance_id || ratingModalRental.appliance?._id;
+      const res = await fetchWithAuth('/api/feedback/', {
+        method: 'POST',
+        body: JSON.stringify({
+          appliance_id: appId,
+          rating: feedbackRating,
+          comment: feedbackComment || 'Great appliance condition, fast delivery, and hassle-free subscription!'
+        })
+      });
+      if (res.ok) {
+        setFeedbackSuccessToast({
+          title: "Rating & Review Submitted! ⭐",
+          message: `Thank you for reviewing ${ratingModalRental.appliance?.rental_name || 'your rental'}. Your feedback helps our verified tenant community.`
+        });
+        setRatingModalRental(null);
+        setFeedbackComment('');
+        setTimeout(() => setFeedbackSuccessToast(null), 6000);
+      } else {
+        const d = await res.json().catch(() => ({}));
+        showToast.error(d.error || 'Failed to submit feedback', 'Feedback Error');
+      }
+    } catch (err) {
+      console.error('Feedback error:', err);
+    } finally {
+      setFeedbackSubmitting(false);
+    }
+  };
+
+  const handleConfirmPause = async (e) => {
+    e?.preventDefault();
+    if (!pauseModalRental) return;
+    setPausing(true);
+    try {
+      const rentalId = pauseModalRental.rental_id || pauseModalRental._id;
+      const res = await fetchWithAuth(`/api/rentals/${rentalId}/pause`, {
+        method: 'POST',
+        body: JSON.stringify({ pause_days: pauseDays, reason: pauseReason })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setRentals((prev) => prev.map(r => (r.rental_id === rentalId || r._id === rentalId) ? {
+          ...r,
+          status: 'PAUSED',
+          pause_until: data.pause_until,
+          pause_days: pauseDays,
+          holding_fee: 199,
+          next_billing_date: data.next_billing_date
+        } : r));
+        showToast.success(data.message || 'Vacation Pause activated! Monthly rental is frozen.', 'Tenure Frozen');
+        setPauseModalRental(null);
+      } else {
+        showToast.error(data.error || 'Failed to activate vacation pause', 'Pause Error');
+      }
+    } catch (err) {
+      console.error('Pause error:', err);
+      showToast.error('Network error activating vacation pause', 'Network Error');
+    } finally {
+      setPausing(false);
+    }
+  };
+
+  const handleResumeRental = async (rental) => {
+    try {
+      const rentalId = rental.rental_id || rental._id;
+      const res = await fetchWithAuth(`/api/rentals/${rentalId}/resume`, {
+        method: 'POST'
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setRentals((prev) => prev.map(r => (r.rental_id === rentalId || r._id === rentalId) ? {
+          ...r,
+          status: 'active',
+          pause_until: null
+        } : r));
+        showToast.success('Subscription successfully resumed! Full active coverage is restored.', 'Subscription Resumed');
+      } else {
+        showToast.error(data.error || 'Failed to resume rental subscription', 'Resume Error');
+      }
+    } catch (err) {
+      console.error('Resume error:', err);
+      showToast.error('Network error resuming subscription', 'Network Error');
     }
   };
 
@@ -424,7 +528,7 @@ const MyRentalsPage = ({ onLogout }) => {
 
   const handleConfirmSwap = async (swapPayload) => {
     try {
-      const res = await fetchWithAuth('http://localhost:8000/api/rentals/', {
+      const res = await fetchWithAuth('/api/rentals/', {
         method: 'PATCH',
         body: JSON.stringify({
           rental_id: swapPayload.oldRental.rental_id,
@@ -441,7 +545,7 @@ const MyRentalsPage = ({ onLogout }) => {
         });
         fetchRentalsAndPayments();
       } else {
-        alert("Failed to schedule swap. Please contact support.");
+        showToast.error("Failed to schedule swap. Please contact support.", "Swap Failed");
       }
     } catch (e) {
       console.error("Error confirming swap:", e);
@@ -464,14 +568,6 @@ const MyRentalsPage = ({ onLogout }) => {
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg-color)', paddingBottom: '4rem' }}>
       
-      {/* Experience Swap Modal (Rentora Signature) */}
-      <ExperienceSwapModal
-        isOpen={!!swapModalRental}
-        rental={swapModalRental}
-        catalog={catalog}
-        onClose={() => setSwapModalRental(null)}
-        onConfirmSwap={handleConfirmSwap}
-      />
 
       {/* Service Modal (Maintenance or Relocation) */}
       {serviceModal && (
@@ -484,13 +580,16 @@ const MyRentalsPage = ({ onLogout }) => {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          padding: '1rem'
+          padding: '1rem',
+          overflowY: 'auto'
         }}>
           <div style={{
             background: '#ffffff',
             borderRadius: '20px',
             maxWidth: '520px',
             width: '100%',
+            maxHeight: '90vh',
+            overflowY: 'auto',
             padding: '2rem',
             position: 'relative',
             boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)',
@@ -645,12 +744,13 @@ const MyRentalsPage = ({ onLogout }) => {
             <button
               onClick={async () => {
                 try {
-                  await fetchWithAuth('http://localhost:8000/api/auth/switch-role/', {
+                  await fetchWithAuth('/api/auth/switch-role/', {
                     method: 'PATCH',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ role: 'owner' })
                   });
                   localStorage.setItem('user_role', 'owner');
+                  localStorage.setItem('is_owner', 'true');
                   navigate('/owner');
                 } catch (e) {
                   navigate('/owner');
@@ -761,7 +861,7 @@ const MyRentalsPage = ({ onLogout }) => {
             {buyoutSuccessAlert.rental && (
               <button
                 type="button"
-                onClick={() => setCertificateModalRental(buyoutSuccessAlert.rental)}
+                onClick={() => { setSelectedInvoice(buyoutSuccessAlert.rental); setIsInvoiceModalOpen(true); }}
                 style={{
                   background: '#fde047',
                   color: '#1e1b4b',
@@ -1305,19 +1405,13 @@ const MyRentalsPage = ({ onLogout }) => {
 
                     {/* Escrow Deposit Badge & Tax Invoice Link */}
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#f8fafc', padding: '0.6rem 0.75rem', borderRadius: '8px', fontSize: '0.78rem', marginBottom: '1rem', border: '1px solid #e2e8f0' }}>
-                      <button 
-                        type="button"
-                        onClick={() => setEscrowModalRental(rental)}
-                        style={{ background: 'none', border: 'none', padding: 0, color: '#059669', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.35rem', textAlign: 'left' }}
-                        title="Open RBI-Compliant Escrow Ledger & Damage Waiver Details"
-                      >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', color: '#059669', fontWeight: 700 }}>
                         <ShieldCheck size={14} color="#059669" />
                         <span>Deposit: ₹{rental.security_deposit || 750}</span>
                         <span style={{ background: '#ecfdf5', color: '#15803d', fontSize: '0.68rem', padding: '0.1rem 0.35rem', borderRadius: '4px', fontWeight: 700 }}>
-                          Escrow Held
+                          Refundable
                         </span>
-                        <span style={{ color: '#059669', fontSize: '0.72rem', textDecoration: 'underline' }}>Ledger ↗</span>
-                      </button>
+                      </div>
                       <button 
                         type="button"
                         onClick={() => handleViewInvoice(rental)}
@@ -1326,6 +1420,51 @@ const MyRentalsPage = ({ onLogout }) => {
                         <FileText size={12} /> Tax Invoice
                       </button>
                     </div>
+
+                    {/* Protection Plan & AutoPay Badges */}
+                    <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', marginBottom: '0.75rem' }}>
+                      {rental.rentora_care && (
+                        <span style={{ background: '#f0fdf4', color: '#166534', border: '1px solid #bbf7d0', fontSize: '0.68rem', padding: '0.15rem 0.45rem', borderRadius: '4px', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                          🛡️ Rentora Care™ Active
+                        </span>
+                      )}
+                      {rental.auto_debit_enabled && (
+                        <span style={{ background: '#eff6ff', color: '#1e40af', border: '1px solid #bfdbfe', fontSize: '0.68rem', padding: '0.15rem 0.45rem', borderRadius: '4px', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                          ⚡ UPI AutoPay Active
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Vacation Pause Active Banner */}
+                    {rental.status === 'PAUSED' && (
+                      <div style={{ background: '#fef3c7', border: '1.5px solid #fde68a', borderRadius: '10px', padding: '0.75rem', marginBottom: '0.85rem' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: '#92400e', fontWeight: 800, fontSize: '0.82rem' }}>
+                            <span>⏸️ Vacation Pause Active</span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleResumeRental(rental)}
+                            style={{
+                              background: '#d97706',
+                              color: '#ffffff',
+                              border: 'none',
+                              padding: '0.35rem 0.75rem',
+                              borderRadius: '6px',
+                              fontSize: '0.75rem',
+                              fontWeight: 800,
+                              cursor: 'pointer',
+                              boxShadow: '0 2px 4px rgba(217, 119, 6, 0.2)'
+                            }}
+                          >
+                            Resume Now
+                          </button>
+                        </div>
+                        <div style={{ fontSize: '0.72rem', color: '#b45309', marginTop: '0.35rem', lineHeight: 1.3 }}>
+                          Rent frozen until {formatDate(rental.pause_until)}. Holding charge: ₹199/mo (no rental liability).
+                        </div>
+                      </div>
+                    )}
                     
                     {/* Metadata */}
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem', fontSize: '0.825rem', color: '#6b7280', marginBottom: '1.25rem' }}>
@@ -1396,7 +1535,7 @@ const MyRentalsPage = ({ onLogout }) => {
 
                           <button
                             type="button"
-                            onClick={() => setCertificateModalRental(rental)}
+                            onClick={() => { setSelectedInvoice(rental); setIsInvoiceModalOpen(true); }}
                             style={{
                               background: 'linear-gradient(135deg, #1e1b4b 0%, #312e81 100%)',
                               color: '#ffffff',
@@ -1414,7 +1553,7 @@ const MyRentalsPage = ({ onLogout }) => {
                             }}
                           >
                             <Award size={15} color="#fde047" />
-                            <span>View Ownership Certificate</span>
+                            <span>View Buyout Receipt</span>
                           </button>
                         </div>
                       ) : (
@@ -1451,34 +1590,7 @@ const MyRentalsPage = ({ onLogout }) => {
                             </div>
                           </button>
 
-                          {/* Escrow Deposit Protection */}
-                          <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '0.45rem' }}>
-                            <button
-                              type="button"
-                              onClick={() => setEscrowModalRental(rental)}
-                              style={{
-                                background: '#ecfdf5',
-                                color: '#065f46',
-                                border: '1px solid #a7f3d0',
-                                padding: '0.45rem 0.65rem',
-                                borderRadius: '8px',
-                                fontSize: '0.74rem',
-                                fontWeight: 700,
-                                cursor: 'pointer',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                gap: '0.35rem',
-                                transition: 'all 0.15s ease'
-                              }}
-                              onMouseOver={(e) => { e.currentTarget.style.background = '#d1fae5'; }}
-                              onMouseOut={(e) => { e.currentTarget.style.background = '#ecfdf5'; }}
-                              title="RBI-Compliant Escrow Protection & Deposit Return Ledger"
-                            >
-                              <ShieldCheck size={13} color="#059669" />
-                              <span>₹{rental.security_deposit || 750} in Escrow</span>
-                            </button>
-                          </div>
+                          
 
                           {/* 2. Flagship Rent-to-Own Equity Action */}
                           <button
@@ -1508,32 +1620,8 @@ const MyRentalsPage = ({ onLogout }) => {
                           </button>
 
                           {/* 3. Lifecycle Services Row */}
-                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.45rem' }}>
-                            <button
-                              type="button"
-                              onClick={() => setSwapModalRental(rental)}
-                              style={{
-                                background: '#f8fafc',
-                                color: '#334155',
-                                border: '1px solid #e2e8f0',
-                                padding: '0.5rem 0.45rem',
-                                borderRadius: '8px',
-                                fontSize: '0.76rem',
-                                fontWeight: 700,
-                                cursor: 'pointer',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                gap: '0.35rem',
-                                transition: 'all 0.15s ease'
-                              }}
-                              onMouseOver={(e) => { e.currentTarget.style.borderColor = '#0284c7'; e.currentTarget.style.color = '#0284c7'; }}
-                              onMouseOut={(e) => { e.currentTarget.style.borderColor = '#e2e8f0'; e.currentTarget.style.color = '#334155'; }}
-                              title="Upgrade to newer model or swap appliance style"
-                            >
-                              <RefreshCw size={13} />
-                              <span>Style Upgrade</span>
-                            </button>
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '0.45rem' }}>
+                            
 
                             <button
                               type="button"
@@ -1560,7 +1648,61 @@ const MyRentalsPage = ({ onLogout }) => {
                               <Wrench size={13} />
                               <span>Service & Shifting</span>
                             </button>
+                            <button type="button" onClick={() => setSelectedAgreementRental(rental)} style={{ background: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe', padding: '0.5rem 0.45rem', borderRadius: '8px', fontSize: '0.76rem', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.35rem', gridColumn: 'span 2', transition: 'all 0.15s ease' }} title="View official notarized digital lease agreement (Module 4)"><FileText size={13} color="#2563eb" /><span>Digital Lease Agreement</span></button>
+                            {rental.status !== 'PAUSED' && (
+                              <button
+                                type="button"
+                                onClick={() => setPauseModalRental(rental)}
+                                style={{
+                                  background: '#fffbeb',
+                                  color: '#92400e',
+                                  border: '1px solid #fde68a',
+                                  padding: '0.5rem 0.45rem',
+                                  borderRadius: '8px',
+                                  fontSize: '0.76rem',
+                                  fontWeight: 700,
+                                  cursor: 'pointer',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  gap: '0.35rem',
+                                  transition: 'all 0.15s ease'
+                                }}
+                                onMouseOver={(e) => { e.currentTarget.style.background = '#fef3c7'; }}
+                                onMouseOut={(e) => { e.currentTarget.style.background = '#fffbeb'; }}
+                                title="Traveling? Freeze rent payments for ₹199/mo holding fee"
+                              >
+                                <PauseCircle size={13} color="#d97706" />
+                                <span>Vacation Pause (Freeze Rent)</span>
+                              </button>
+                            )}
                           </div>
+
+                          {/* Feedback & Star Rating Trigger */}
+                          <button
+                            type="button"
+                            onClick={() => handleOpenFeedbackModal(rental)}
+                            style={{
+                              background: '#fffdf5',
+                              border: '1px solid #fde68a',
+                              color: '#b45309',
+                              borderRadius: '8px',
+                              padding: '0.45rem',
+                              fontSize: '0.76rem',
+                              fontWeight: 700,
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              gap: '0.35rem',
+                              transition: 'all 0.15s ease'
+                            }}
+                            onMouseOver={(e) => { e.currentTarget.style.background = '#fef3c7'; }}
+                            onMouseOut={(e) => { e.currentTarget.style.background = '#fffdf5'; }}
+                          >
+                            <Star size={13} fill="#f59e0b" color="#f59e0b" />
+                            <span>Rate & Review Appliance</span>
+                          </button>
 
                           {/* 4. Subtle Return & Refund Link */}
                           <button 
@@ -1793,6 +1935,8 @@ const MyRentalsPage = ({ onLogout }) => {
             borderRadius: '20px',
             maxWidth: '560px',
             width: '100%',
+            maxHeight: '90vh',
+            overflowY: 'auto',
             padding: '2rem',
             boxShadow: '0 25px 50px rgba(0,0,0,0.3)',
             position: 'relative'
@@ -1926,13 +2070,16 @@ const MyRentalsPage = ({ onLogout }) => {
           alignItems: 'center',
           justifyContent: 'center',
           zIndex: 1200,
-          padding: '1rem'
+          padding: '1rem',
+          overflowY: 'auto'
         }}>
           <div style={{
             background: 'white',
             borderRadius: '20px',
             maxWidth: '480px',
             width: '100%',
+            maxHeight: '90vh',
+            overflowY: 'auto',
             padding: '2rem',
             boxShadow: '0 25px 50px rgba(0,0,0,0.3)',
             position: 'relative'
@@ -2029,13 +2176,6 @@ const MyRentalsPage = ({ onLogout }) => {
         onRentalUpdated={fetchRentalsAndPayments}
       />
 
-      {/* Interactive Escrow Ledger Modal */}
-      <EscrowLedgerModal
-        isOpen={!!escrowModalRental}
-        onClose={() => setEscrowModalRental(null)}
-        rental={escrowModalRental}
-        onDepositSettled={fetchRentalsAndPayments}
-      />
 
       {/* Rent-to-Own Buyout & Tenure Extension Modal */}
       {buyoutModalRental && (
@@ -2047,12 +2187,292 @@ const MyRentalsPage = ({ onLogout }) => {
         />
       )}
 
-      {/* Official Certificate of Ownership Modal */}
-      {certificateModalRental && (
-        <OwnershipCertificateModal
-          rental={certificateModalRental}
-          onClose={() => setCertificateModalRental(null)}
+      {/* Module 4: Digital Lease & Tenancy Agreement Modal */}
+      {selectedAgreementRental && (
+        <DigitalLeaseAgreementModal
+          rental={selectedAgreementRental}
+          isOpen={Boolean(selectedAgreementRental)}
+          onClose={() => setSelectedAgreementRental(null)}
         />
+      )}
+
+
+      {/* Customer Feedback & Star Rating Modal (Module 8) */}
+      {ratingModalRental && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(15, 23, 42, 0.75)',
+          backdropFilter: 'blur(6px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1200,
+          padding: '1rem',
+          overflowY: 'auto'
+        }}>
+          <div style={{
+            background: '#ffffff',
+            borderRadius: '20px',
+            maxWidth: '520px',
+            width: '100%',
+            maxHeight: '90vh',
+            overflowY: 'auto',
+            boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)',
+            border: '1px solid #e2e8f0'
+          }}>
+            <div style={{
+              background: 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)',
+              color: '#ffffff',
+              padding: '1.25rem 1.5rem',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <Star size={18} fill="#f59e0b" color="#f59e0b" />
+                <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800 }}>Rate & Review Appliance</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setRatingModalRental(null)}
+                style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer' }}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <form onSubmit={handleSubmitFeedback} style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', background: '#f8fafc', padding: '0.75rem', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
+                <img
+                  src={ratingModalRental.appliance?.image_url || 'https://images.unsplash.com/photo-1582735689369-4fe89db7114c?w=300'}
+                  alt="Appliance"
+                  style={{ width: '48px', height: '48px', objectFit: 'contain', borderRadius: '6px' }}
+                />
+                <div>
+                  <div style={{ fontSize: '0.88rem', fontWeight: 700, color: '#0f172a' }}>
+                    {ratingModalRental.appliance?.rental_name || ratingModalRental.rental_name || 'Appliance'}
+                  </div>
+                  <div style={{ fontSize: '0.75rem', color: '#64748b' }}>
+                    Lease ID: #{String(ratingModalRental.rental_id || ratingModalRental._id).slice(0, 8)}
+                  </div>
+                </div>
+              </div>
+
+              {/* Interactive 5-Star Selection */}
+              <div>
+                <label style={{ display: 'block', fontSize: '0.825rem', fontWeight: 700, color: '#334155', marginBottom: '0.5rem' }}>
+                  Select Star Rating
+                </label>
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  {[1, 2, 3, 4, 5].map(st => (
+                    <button
+                      key={st}
+                      type="button"
+                      onClick={() => setFeedbackRating(st)}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        cursor: 'pointer',
+                        padding: '0.25rem',
+                        transition: 'transform 0.15s ease'
+                      }}
+                      onMouseOver={(e) => { e.currentTarget.style.transform = 'scale(1.2)'; }}
+                      onMouseOut={(e) => { e.currentTarget.style.transform = 'scale(1)'; }}
+                    >
+                      <Star
+                        size={28}
+                        fill={st <= feedbackRating ? '#f59e0b' : 'none'}
+                        color={st <= feedbackRating ? '#f59e0b' : '#cbd5e1'}
+                      />
+                    </button>
+                  ))}
+                  <span style={{ alignSelf: 'center', fontSize: '0.88rem', fontWeight: 700, color: '#b45309', marginLeft: '0.5rem' }}>
+                    {feedbackRating === 5 ? '5.0 - Excellent!' : `${feedbackRating}.0 Stars`}
+                  </span>
+                </div>
+              </div>
+
+              {/* Review Text Area */}
+              <div>
+                <label style={{ display: 'block', fontSize: '0.825rem', fontWeight: 700, color: '#334155', marginBottom: '0.35rem' }}>
+                  Your Experience & Feedback
+                </label>
+                <textarea
+                  rows={4}
+                  value={feedbackComment}
+                  onChange={(e) => setFeedbackComment(e.target.value)}
+                  placeholder="Share details about performance, cleanliness, cooling/functioning, delivery and setup..."
+                  style={{ width: '100%', padding: '0.65rem 0.75rem', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.85rem' }}
+                />
+              </div>
+
+              <div style={{ display: 'flex', gap: '0.75rem', marginTop: '0.25rem' }}>
+                <button
+                  type="button"
+                  onClick={() => setRatingModalRental(null)}
+                  style={{ flex: 1, padding: '0.65rem', borderRadius: '8px', border: '1px solid #cbd5e1', background: '#fff', fontSize: '0.85rem', fontWeight: 600, cursor: 'pointer' }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={feedbackSubmitting}
+                  style={{ flex: 1, padding: '0.65rem', borderRadius: '8px', border: 'none', background: '#e23744', color: '#fff', fontSize: '0.85rem', fontWeight: 700, cursor: 'pointer' }}
+                >
+                  {feedbackSubmitting ? 'Submitting...' : 'Submit Review'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Vacation Pause / Subscription Freeze Modal */}
+      {pauseModalRental && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(15, 23, 42, 0.75)',
+          backdropFilter: 'blur(6px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1200,
+          padding: '1rem',
+          overflowY: 'auto'
+        }}>
+          <div style={{
+            background: '#ffffff',
+            borderRadius: '20px',
+            maxWidth: '500px',
+            width: '100%',
+            maxHeight: '90vh',
+            overflowY: 'auto',
+            boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)',
+            border: '1px solid #e2e8f0'
+          }}>
+            <div style={{
+              background: 'linear-gradient(135deg, #78350f 0%, #b45309 100%)',
+              color: '#ffffff',
+              padding: '1.25rem 1.5rem',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <PauseCircle size={20} color="#fef08a" />
+                <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800 }}>Vacation Pause / Freeze Rent</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setPauseModalRental(null)}
+                style={{ background: 'transparent', border: 'none', color: '#fef3c7', cursor: 'pointer' }}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <form onSubmit={handleConfirmPause} style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+              <div style={{
+                background: '#fffbeb',
+                border: '1px solid #fde68a',
+                borderRadius: '10px',
+                padding: '0.85rem',
+                fontSize: '0.825rem',
+                color: '#92400e',
+                lineHeight: 1.4
+              }}>
+                ✈️ <strong>Traveling or on vacation?</strong> Don't pay full monthly rent while you're away! Freeze your tenure for a nominal holding fee of <strong>₹199/month</strong>. Your security deposit and appliance stay safely reserved at your doorstep.
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.825rem', fontWeight: 700, color: '#334155', marginBottom: '0.5rem' }}>
+                  Select Pause Duration:
+                </label>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                  <button
+                    type="button"
+                    onClick={() => setPauseDays(30)}
+                    style={{
+                      padding: '0.75rem',
+                      borderRadius: '10px',
+                      border: `2px solid ${pauseDays === 30 ? '#d97706' : '#e2e8f0'}`,
+                      background: pauseDays === 30 ? '#fef3c7' : '#ffffff',
+                      color: pauseDays === 30 ? '#92400e' : '#475569',
+                      fontWeight: 800,
+                      cursor: 'pointer',
+                      textAlign: 'center'
+                    }}
+                  >
+                    <div>30 Days Pause</div>
+                    <div style={{ fontSize: '0.72rem', color: '#b45309', fontWeight: 600 }}>₹199 Holding Fee</div>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPauseDays(60)}
+                    style={{
+                      padding: '0.75rem',
+                      borderRadius: '10px',
+                      border: `2px solid ${pauseDays === 60 ? '#d97706' : '#e2e8f0'}`,
+                      background: pauseDays === 60 ? '#fef3c7' : '#ffffff',
+                      color: pauseDays === 60 ? '#92400e' : '#475569',
+                      fontWeight: 800,
+                      cursor: 'pointer',
+                      textAlign: 'center'
+                    }}
+                  >
+                    <div>60 Days Pause</div>
+                    <div style={{ fontSize: '0.72rem', color: '#b45309', fontWeight: 600 }}>₹398 Holding Fee</div>
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.825rem', fontWeight: 700, color: '#334155', marginBottom: '0.35rem' }}>
+                  Reason for Pause:
+                </label>
+                <select
+                  value={pauseReason}
+                  onChange={(e) => setPauseReason(e.target.value)}
+                  style={{ width: '100%', padding: '0.65rem', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.85rem' }}
+                >
+                  <option value="Vacation / Travel">Vacation / Out of Station</option>
+                  <option value="Temporary Home Renovation">Home Renovation / Painting</option>
+                  <option value="Exam / Work Travel">Work Assignment / Relocation Trial</option>
+                  <option value="Other">Other Personal Reasons</option>
+                </select>
+              </div>
+
+              <div style={{ display: 'flex', gap: '0.75rem', marginTop: '0.25rem' }}>
+                <button
+                  type="button"
+                  onClick={() => setPauseModalRental(null)}
+                  style={{ flex: 1, padding: '0.65rem', borderRadius: '8px', border: '1px solid #cbd5e1', background: '#fff', fontSize: '0.85rem', fontWeight: 600, cursor: 'pointer' }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={pausing}
+                  style={{
+                    flex: 1,
+                    padding: '0.65rem',
+                    borderRadius: '8px',
+                    border: 'none',
+                    background: '#d97706',
+                    color: '#fff',
+                    fontSize: '0.85rem',
+                    fontWeight: 700,
+                    cursor: 'pointer'
+                  }}
+                >
+                  {pausing ? 'Activating...' : 'Confirm Pause'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
       )}
 
       {/* Monthly Subscription Renewal Razorpay Gateway Modal */}

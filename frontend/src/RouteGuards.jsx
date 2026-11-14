@@ -3,7 +3,7 @@ import { Navigate, useLocation } from 'react-router-dom';
 
 /**
  * ProtectedRoute
- * Redirects unauthenticated users to /session-expired (soft) or /login (hard).
+ * Redirects unauthenticated users to /login.
  * Usage:
  *   <ProtectedRoute><MyPage /></ProtectedRoute>
  */
@@ -14,7 +14,7 @@ export const ProtectedRoute = ({ children }) => {
   if (!token) {
     return (
       <Navigate
-        to="/session-expired"
+        to="/login"
         replace
         state={{ from: location }}
       />
@@ -25,24 +25,26 @@ export const ProtectedRoute = ({ children }) => {
 
 /**
  * RoleRoute
- * Redirects to /403 if the logged-in user does not have the required role.
+ * Redirects to /403 if the logged-in user does not have the required role,
+ * or to /login if unauthenticated.
  * Usage:
  *   <RoleRoute role="admin"><AdminDashboard /></RoleRoute>
  */
 export const RoleRoute = ({ children, role }) => {
   const token = localStorage.getItem('access_token');
   const currentRole = localStorage.getItem('user_role');
+  const isOwner = localStorage.getItem('is_owner') === 'true';
   const location = useLocation();
 
   if (!token) {
-    // Not logged in at all → session expired
-    return <Navigate to="/session-expired" replace state={{ from: location }} />;
+    return <Navigate to="/login" replace state={{ from: location }} />;
   }
 
-  // Normalise: admins can access everything, owner can access owner-level routes
+  // Normalise: admins can access everything, owners can access owner-level routes
   const allowed =
     currentRole === role ||
-    currentRole === 'admin'; // admin is a super-role
+    currentRole === 'admin' ||
+    (role === 'owner' && (currentRole === 'owner' || isOwner));
 
   if (!allowed) {
     return <Navigate to="/403" replace />;

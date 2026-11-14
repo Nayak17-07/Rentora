@@ -1,4 +1,4 @@
-# 🌟 Rentora (RentAI) — Next-Gen AI & IoT Household Appliance Rental Platform
+# 🌟 Rentora — Next-Gen AI & IoT Household Appliance Rental Platform
 
 [![Node.js](https://img.shields.io/badge/Node.js-v20%2B-green.svg)](https://nodejs.org/)
 [![Express.js](https://img.shields.io/badge/Express.js-v5.2-lightgrey.svg)](https://expressjs.com/)

@@ -16,6 +16,8 @@ const addressesRoutes = require('./routes/addresses');
 const conciergeRoutes = require('./routes/concierge');
 const inventoryRoutes = require('./routes/inventory');
 const trackingRoutes = require('./routes/tracking');
+const browsingHistoryRoutes = require('./routes/browsingHistory');
+const maintenanceRoutes = require('./routes/maintenance');
 
 const app = express();
 
@@ -72,6 +74,8 @@ app.use('/api', feedbackRoutes);
 app.use('/api', conciergeRoutes);
 app.use('/api', inventoryRoutes);
 app.use('/api', trackingRoutes);
+app.use('/api', browsingHistoryRoutes);
+app.use('/api', maintenanceRoutes);
 
 // Global Error Handler
 app.use((err, req, res, _next) => {

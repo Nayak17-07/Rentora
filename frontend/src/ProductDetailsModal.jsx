@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, ShieldCheck, Zap, Truck, Check, RefreshCw, Award, Sparkles, HelpCircle, Star } from 'lucide-react';
+import { trackApplianceView } from './utils/browsingHistory';
+import { publicFetch } from './utils/api';
 
 function ProductDetailsModal({ appliance, onClose, onAddToCart }) {
   const [mode, setMode] = useState('rent'); // 'rent' | 'buy_refurbished'
@@ -16,8 +18,11 @@ function ProductDetailsModal({ appliance, onClose, onAddToCart }) {
 
   useEffect(() => {
     if (appliance) {
+      // Module 2: Automatically track appliance in browsing history
+      trackApplianceView(appliance, 'details_modal');
+
       const appId = appliance.appliance_id || appliance._id;
-      fetch(`http://localhost:8000/api/feedback/?appliance_id=${appId}`)
+      publicFetch(`/api/feedback/?appliance_id=${appId}`)
         .then(res => res.json())
         .then(data => {
           if (data.feedbacks && data.feedbacks.length > 0) {
@@ -30,7 +35,7 @@ function ProductDetailsModal({ appliance, onClose, onAddToCart }) {
         .catch(err => console.error("Error fetching reviews:", err));
 
       // Fetch AI Companion Recommendations for this appliance
-      fetch(`http://localhost:8000/api/recommendations/?appliance_id=${appId}&filter=room_bundles`)
+      publicFetch(`/api/recommendations/?appliance_id=${appId}&filter=room_bundles`)
         .then(res => res.json())
         .then(data => {
           if (Array.isArray(data)) {
@@ -86,34 +91,34 @@ function ProductDetailsModal({ appliance, onClose, onAddToCart }) {
   };
 
   return (
-    <div style={{
-      position: 'fixed', inset: 0, backgroundColor: 'rgba(15, 23, 42, 0.75)', backdropFilter: 'blur(8px)', 
-      zIndex: 1050, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem'
-    }}>
-      <div style={{
-        backgroundColor: '#ffffff', borderRadius: '24px', overflow: 'hidden', maxWidth: '64rem', 
-        width: '100%', display: 'flex', flexWrap: 'wrap',
-        boxShadow: '0 25px 60px -15px rgba(0, 0, 0, 0.35)', position: 'relative', maxHeight: '92vh', overflowY: 'auto'
-      }}>
-        {/* Close Button */}
-        <button onClick={onClose} style={{
-          position: 'absolute', top: '1.25rem', right: '1.25rem', backgroundColor: '#f3f4f6',
-          padding: '0.5rem', borderRadius: '9999px', border: 'none', cursor: 'pointer', zIndex: 10,
-          display: 'flex', alignItems: 'center', justifyContent: 'center'
-        }}>
-          <X size={20} color="#374151" />
+    <div 
+      className="product-modal-overlay"
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+    >
+      <div className="product-modal-container">
+        {/* Close Button - Stays securely anchored at top-right */}
+        <button 
+          onClick={onClose} 
+          className="product-modal-close-btn"
+          aria-label="Close modal"
+        >
+          <X size={20} />
         </button>
         
-        {/* Left Column: Image & Assurance Badges */}
-        <div style={{
-          flex: '1 1 340px', backgroundColor: '#f8fafc', display: 'flex', flexDirection: 'column', 
-          justifyContent: 'space-between', padding: '2.5rem', borderRight: '1px solid #e5e7eb'
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '320px' }}>
+        {/* Responsive 2-Column Grid (side-by-side on desktop, stacked on mobile) */}
+        <div className="product-modal-grid">
+          
+          {/* Left Column: Image & Assurance Badges */}
+          <div className="product-modal-left-col">
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '200px', maxHeight: '280px', width: '100%' }}>
             <img 
               src={appliance.image_url} 
               alt={appliance.rental_name} 
               style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+              onError={(e) => {
+                e.currentTarget.onerror = null;
+                e.currentTarget.src = 'https://images.unsplash.com/photo-1556911220-e15b29be8c8f?auto=format&fit=crop&q=80&w=600';
+              }}
             />
           </div>
 
@@ -182,9 +187,7 @@ function ProductDetailsModal({ appliance, onClose, onAddToCart }) {
         </div>
         
         {/* Right Column: Details, Mode Toggle, Tenure / Buy Selector */}
-        <div style={{
-          flex: '1 1 360px', padding: '2.5rem', display: 'flex', flexDirection: 'column'
-        }}>
+          <div className="product-modal-right-col">
           
           {/* Top Category and Rent vs Buy Refurbished Mode Toggle */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.5rem' }}>
@@ -289,7 +292,7 @@ function ProductDetailsModal({ appliance, onClose, onAddToCart }) {
                   <h3 style={{ fontSize: '0.9rem', fontWeight: 800, color: '#111827', margin: 0 }}>Select Rental Commitment</h3>
                   <span style={{ fontSize: '0.75rem', color: '#16a34a', fontWeight: 700 }}>Longer tenure = Lower rent</span>
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.75rem' }}>
+                <div className="product-modal-tenure-grid">
                   {['3', '6', '12'].map(t => (
                     <button
                       key={t}
@@ -394,7 +397,7 @@ function ProductDetailsModal({ appliance, onClose, onAddToCart }) {
                 </span>
               </div>
 
-              <div style={{ display: 'flex', gap: '0.65rem', overflowX: 'auto', paddingBottom: '0.25rem' }}>
+              <div className="product-modal-paired-scroll">
                 {pairedAccessories.map((p, idx) => {
                   const item = p.recommended_appliance_details;
                   if (!item) return null;
@@ -404,20 +407,10 @@ function ProductDetailsModal({ appliance, onClose, onAddToCart }) {
                   return (
                     <div
                       key={p.recommendation_id || idx}
-                      style={{
-                        background: '#ffffff',
-                        border: '1px solid #e2e8f0',
-                        borderRadius: '8px',
-                        padding: '0.5rem',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '0.5rem',
-                        minWidth: '200px',
-                        flex: '1 0 200px'
-                      }}
+                      className="product-modal-paired-card"
                     >
                       <div style={{ width: '40px', height: '40px', borderRadius: '6px', overflow: 'hidden', flexShrink: 0, background: '#f1f5f9' }}>
-                        <img src={item.image_url} alt={item.rental_name} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                        <img src={item.image_url} alt={item.rental_name} style={{ width: '100%', height: '100%', objectFit: 'contain' }} onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = 'https://images.unsplash.com/photo-1556911220-e15b29be8c8f?auto=format&fit=crop&q=80&w=200'; }} />
                       </div>
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#0f172a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
@@ -458,34 +451,45 @@ function ProductDetailsModal({ appliance, onClose, onAddToCart }) {
             </div>
           )}
           
-          {/* Main Action Button */}
-          <button 
-            onClick={handleAdd}
-            disabled={isAdding || (isOutOfStock && mode === 'rent')}
-            style={{
-              marginTop: 'auto',
-              width: '100%',
-              backgroundColor: (isOutOfStock && mode === 'rent') ? '#94a3b8' : '#e23744',
-              color: 'white',
-              fontWeight: 800,
-              fontSize: '1rem',
-              padding: '1rem',
-              borderRadius: '12px',
-              border: 'none',
-              cursor: (isAdding || (isOutOfStock && mode === 'rent')) ? 'not-allowed' : 'pointer',
-              transition: 'all 0.2s',
-              boxShadow: (isOutOfStock && mode === 'rent') ? 'none' : '0 4px 14px rgba(226, 55, 68, 0.35)',
-              opacity: isAdding ? 0.7 : 1
-            }}
-          >
-            {isAdding 
-              ? 'Processing...' 
-              : (isOutOfStock && mode === 'rent')
-                ? 'Out of Stock • Restocking Soon'
-                : mode === 'rent'
-                  ? `Rent Now • ₹${(currentRent + securityDeposit).toLocaleString('en-IN')} Due Today`
-                  : `Buy Refurbished • ₹${refurbishedPrice.toLocaleString('en-IN')}`}
-          </button>
+          {/* Sticky Bottom Action Bar */}
+          <div style={{
+            position: 'sticky',
+            bottom: 0,
+            background: 'var(--surface-color, #ffffff)',
+            paddingTop: '0.85rem',
+            paddingBottom: '0.25rem',
+            marginTop: 'auto',
+            zIndex: 10,
+            boxShadow: '0 -8px 16px -6px rgba(0, 0, 0, 0.06)'
+          }}>
+            <button 
+              onClick={handleAdd}
+              disabled={isAdding || (isOutOfStock && mode === 'rent')}
+              style={{
+                width: '100%',
+                backgroundColor: (isOutOfStock && mode === 'rent') ? '#94a3b8' : '#e23744',
+                color: 'white',
+                fontWeight: 800,
+                fontSize: '1rem',
+                padding: '1rem',
+                borderRadius: '12px',
+                border: 'none',
+                cursor: (isAdding || (isOutOfStock && mode === 'rent')) ? 'not-allowed' : 'pointer',
+                transition: 'all 0.2s',
+                boxShadow: (isOutOfStock && mode === 'rent') ? 'none' : '0 4px 14px rgba(226, 55, 68, 0.35)',
+                opacity: isAdding ? 0.7 : 1
+              }}
+            >
+              {isAdding 
+                ? 'Processing...' 
+                : (isOutOfStock && mode === 'rent')
+                  ? 'Out of Stock • Restocking Soon'
+                  : mode === 'rent'
+                    ? `Rent Now • ₹${(currentRent + securityDeposit).toLocaleString('en-IN')} Due Today`
+                    : `Buy Refurbished • ₹${refurbishedPrice.toLocaleString('en-IN')}`}
+            </button>
+          </div>
+          </div>
         </div>
       </div>
     </div>

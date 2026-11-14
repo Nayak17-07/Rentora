@@ -1,6 +1,8 @@
 const express = require('express');
+const crypto = require('crypto');
 const { getDb } = require('../db');
 const { authenticateJWT, requireRole } = require('../auth');
+const { buildCsvString } = require('../utils/csv');
 
 const router = express.Router();
 
@@ -322,11 +324,36 @@ router.patch(['/admin/rentals/:rental_id/approve/', '/admin/rentals/:rental_id/'
     }
 
     const { status, delivery_stage, agent_name, agent_phone, vehicle_number, entered_otp, admin_notes } = req.body;
+    
+    // Strict status allowlist
+    const ALLOWED_STATUSES = ['active', 'dispatched', 'delivered', 'returned', 'cancelled', 'inactive', 'OWNED'];
+    if (status && !ALLOWED_STATUSES.includes(status)) {
+      return res.status(400).json({
+        error: `Invalid rental status: '${status}'. Allowed statuses: ${ALLOWED_STATUSES.join(', ')}`
+      });
+    }
+
+    // Strict delivery stage allowlist
+    const ALLOWED_DELIVERY_STAGES = ['QUALITY_CHECK', 'OUT_FOR_DELIVERY', 'DELIVERED', 'RETURN_REQUESTED', 'RETURNED'];
+    if (delivery_stage && !ALLOWED_DELIVERY_STAGES.includes(delivery_stage)) {
+      return res.status(400).json({
+        error: `Invalid delivery stage: '${delivery_stage}'. Allowed stages: ${ALLOWED_DELIVERY_STAGES.join(', ')}`
+      });
+    }
+
     const newStatus = status || (delivery_stage === 'DELIVERED' ? 'delivered' : (delivery_stage === 'OUT_FOR_DELIVERY' ? 'dispatched' : undefined));
 
     const existing = await db.collection('rentals').findOne({ _id: rentalId });
     if (!existing) {
       return res.status(404).json({ error: 'Rental not found' });
+    }
+
+    // State transition guard: Cannot transition terminal states back to active states
+    const TERMINAL_STATUSES = ['returned', 'cancelled', 'inactive', 'OWNED'];
+    if (TERMINAL_STATUSES.includes(existing.status) && newStatus && newStatus !== existing.status) {
+      return res.status(400).json({
+        error: `Invalid state transition: Cannot change status of rental in terminal state '${existing.status}' to '${newStatus}'.`
+      });
     }
 
     const currentTracking = existing.delivery_tracking || {};
@@ -370,6 +397,21 @@ router.patch(['/admin/rentals/:rental_id/approve/', '/admin/rentals/:rental_id/'
       { _id: rentalId },
       { $set: setObj }
     );
+
+    // Audit log administrative change
+    await db.collection('admin_audit_logs').insertOne({
+      _id: crypto.randomUUID(),
+      admin_id: req.user.id,
+      admin_email: req.user.email || req.user.username || 'Admin',
+      action: 'UPDATE_RENTAL_STATUS',
+      rental_id: rentalId,
+      previous_status: existing.status,
+      new_status: setObj.status || existing.status,
+      previous_delivery_status: existing.delivery_status,
+      new_delivery_status: setObj.delivery_status || existing.delivery_status,
+      admin_notes: setObj.admin_notes,
+      timestamp: new Date()
+    }).catch(e => console.warn('Failed to record admin audit log:', e.message));
 
     // Replenish catalog stock if rental is terminated, returned, or cancelled
     if (['inactive', 'returned', 'cancelled'].includes(newStatus) && !['inactive', 'returned', 'cancelled'].includes(existing.status)) {
@@ -433,10 +475,16 @@ router.get('/admin/kyc/', async (req, res) => {
       .sort({ submitted_at: -1 })
       .toArray();
 
-    const formatted = [];
-    for (const doc of kycDocs) {
-      const user = await db.collection('users').findOne({ _id: doc.user_id });
-      formatted.push({
+    const userIds = [...new Set(kycDocs.map(k => k.user_id).filter(Boolean))];
+    const usersList = await db.collection('users').find(
+      { _id: { $in: userIds } },
+      { projection: { password: 0 } }
+    ).toArray();
+    const userMap = new Map(usersList.map(u => [String(u._id), u]));
+
+    const formatted = kycDocs.map(doc => {
+      const user = userMap.get(String(doc.user_id));
+      return {
         _id: String(doc._id),
         user_id: doc.user_id,
         username: user?.username || doc.user_name || 'Tenant User',
@@ -452,12 +500,14 @@ router.get('/admin/kyc/', async (req, res) => {
         address_proof_preview: doc.address_proof_preview || doc.address_proof_mock_url || '',
         status: doc.status || 'in_review',
         confidence_score: doc.confidence_score || 98.4,
+        is_demo: Boolean(doc.is_demo_kyc),
+        verification_type: doc.verification_type || (doc.is_demo_kyc ? 'SIMULATED_DEMO' : 'GENUINE_EKYC'),
         verification_audit: doc.verification_audit || null,
         submitted_at: doc.submitted_at instanceof Date ? doc.submitted_at.toISOString() : doc.submitted_at,
         reviewed_at: doc.reviewed_at instanceof Date ? doc.reviewed_at.toISOString() : doc.reviewed_at,
         rejection_reason: doc.rejection_reason || null
-      });
-    }
+      };
+    });
 
     const pendingCount = formatted.filter(k => k.status === 'in_review' || k.status === 'pending').length;
     const approvedCount = formatted.filter(k => k.status === 'approved').length;
@@ -641,19 +691,8 @@ router.get('/admin/export/', async (req, res) => {
       return res.status(404).json({ error: `No records found for export type: ${type}` });
     }
 
-    const csvRows = [];
-    csvRows.push(headers.join(','));
-    
-    for (const row of data) {
-      const values = headers.map(header => {
-        const val = row[header] !== undefined && row[header] !== null ? String(row[header]).replace(/"/g, '""') : '';
-        return `"${val}"`;
-      });
-      csvRows.push(values.join(','));
-    }
-    
-    // Add UTF-8 BOM so Excel opens with proper encoding
-    const csvString = '\uFEFF' + csvRows.join('\r\n');
+    // Use safe CSV builder with formula injection sanitization and UTF-8 BOM
+    const csvString = buildCsvString(headers, data);
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
     res.setHeader('Content-Disposition', `attachment; filename=${filename}`);
     return res.status(200).send(csvString);
@@ -678,48 +717,75 @@ router.get(['/admin/bi-analytics/', '/admin/business-intelligence/'], async (req
     const activeRentals = allRentals.filter(r => r.status === 'active' || r.status === 'OWNED');
     const totalRevenue = allRentals.reduce((sum, r) => sum + (parseFloat(r.amount_paid) || 0), 0);
     
-    // MRR = sum of active monthly rentals
-    const currentMRR = activeRentals.reduce((sum, r) => sum + (parseFloat(r.monthly_rent) || 650), 0);
+    // MRR = sum of active monthly rentals from catalog/lease values
+    const currentMRR = activeRentals.reduce((sum, r) => sum + (parseFloat(r.monthly_rent) || 0), 0);
     const runRateARR = currentMRR * 12;
 
-    const totalCustomers = allUsers.filter(u => u.role === 'customer').length || allUsers.length || 1;
+    const totalCustomers = allUsers.filter(u => u.role === 'customer').length || allUsers.length || 0;
     const arpu = totalCustomers > 0 ? Math.round(currentMRR / totalCustomers) : 0;
-    const avgTenureMonths = 8.4;
-    const customerLTV = Math.round(arpu * avgTenureMonths * 0.72); // 72% gross margin
+    
+    // Calculate actual average tenure from rental records
+    const validTenures = allRentals.map(r => parseFloat(r.tenure)).filter(t => !isNaN(t) && t > 0);
+    const avgTenureMonths = validTenures.length > 0
+      ? Number((validTenures.reduce((a, b) => a + b, 0) / validTenures.length).toFixed(1))
+      : 0;
+    const customerLTV = Math.round(arpu * (avgTenureMonths || 1) * 0.72);
 
     // Deposit escrow liability
-    const totalDepositsHeld = activeRentals.reduce((sum, r) => sum + (parseFloat(r.security_deposit) || 1200), 0);
+    const totalDepositsHeld = activeRentals.reduce((sum, r) => sum + (parseFloat(r.security_deposit) || 0), 0);
 
-    // Fleet Utilization Index
-    const totalFleetUnits = Math.max(units.length, allAppliances.reduce((sum, a) => sum + (a.stock_quantity || 10), 0) + activeRentals.length);
+    // Fleet Utilization Index computed from actual stock and active leases
+    const totalCatalogUnits = allAppliances.reduce((sum, a) => sum + (parseInt(a.stock_quantity, 10) || 0), 0) + activeRentals.length;
     const activeUnitsCount = activeRentals.length;
-    const fleetUtilizationPct = totalFleetUnits > 0 ? Math.min(98, Math.max(45, Math.round((activeUnitsCount / (activeUnitsCount + 18)) * 100))) : 82;
+    const fleetUtilizationPct = totalCatalogUnits > 0
+      ? Math.min(100, Math.round((activeUnitsCount / totalCatalogUnits) * 100))
+      : 0;
 
-    // Monthly Revenue Trend (Last 6 Months)
-    const months = ['May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct'];
-    const revenueTrend = months.map((m, idx) => {
-      const multiplier = 0.65 + (idx * 0.08);
-      const rev = Math.round(currentMRR * multiplier);
-      return {
-        month: m,
+    // Monthly Revenue Trend (computed from database payments)
+    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const nowMonth = new Date();
+    const sixMonthsAgo = new Date(nowMonth.getFullYear(), nowMonth.getMonth() - 5, 1);
+    
+    const paymentsAgg = await db.collection('payments').aggregate([
+      { $match: { status: 'SUCCESS', created_at: { $gte: sixMonthsAgo } } },
+      {
+        $group: {
+          _id: { $dateToString: { format: '%Y-%m', date: '$created_at' } },
+          total_revenue: { $sum: '$amount_total' },
+          count: { $sum: 1 }
+        }
+      }
+    ]).toArray();
+    const paymentsMap = new Map(paymentsAgg.map(p => [p._id, p]));
+
+    const revenueTrend = [];
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(nowMonth.getFullYear(), nowMonth.getMonth() - i, 1);
+      const key = d.toISOString().slice(0, 7);
+      const mName = monthNames[d.getMonth()];
+      const payData = paymentsMap.get(key);
+      const rev = payData ? Math.round(payData.total_revenue) : (currentMRR > 0 ? Math.round(currentMRR * (0.65 + (5 - i) * 0.07)) : 0);
+      revenueTrend.push({
+        month: mName,
+        year_month: key,
         revenue: rev,
         mrr: Math.round(rev * 0.88),
-        new_bookings: Math.round(18 + idx * 7),
-        churn_rate_pct: Math.max(2.1, Number((5.8 - idx * 0.6).toFixed(1)))
-      };
-    });
+        new_bookings: payData ? payData.count : activeRentals.length,
+        is_estimated: !payData
+      });
+    }
 
-    // Predictive Demand Forecasting by Category (Next 6 Months: Nov - Apr)
+    // Predictive Demand Forecasting by Category (clearly marked as estimated projection)
     const demandForecast = [
-      { month: 'Nov 2026', air_conditioners: 42, refrigerators: 78, washing_machines: 85, water_purifiers: 62, room_combos: 34 },
-      { month: 'Dec 2026', air_conditioners: 30, refrigerators: 72, washing_machines: 92, water_purifiers: 68, room_combos: 38 },
-      { month: 'Jan 2027', air_conditioners: 28, refrigerators: 68, washing_machines: 98, water_purifiers: 74, room_combos: 42 },
-      { month: 'Feb 2027', air_conditioners: 65, refrigerators: 85, washing_machines: 94, water_purifiers: 79, room_combos: 55 },
-      { month: 'Mar 2027', air_conditioners: 135, refrigerators: 110, washing_machines: 102, water_purifiers: 88, room_combos: 70 },
-      { month: 'Apr 2027', air_conditioners: 198, refrigerators: 145, washing_machines: 108, water_purifiers: 94, room_combos: 82 }
+      { month: 'Nov 2026', air_conditioners: 42, refrigerators: 78, washing_machines: 85, water_purifiers: 62, room_combos: 34, is_forecast: true, is_estimated: true },
+      { month: 'Dec 2026', air_conditioners: 30, refrigerators: 72, washing_machines: 92, water_purifiers: 68, room_combos: 38, is_forecast: true, is_estimated: true },
+      { month: 'Jan 2027', air_conditioners: 28, refrigerators: 68, washing_machines: 98, water_purifiers: 74, room_combos: 42, is_forecast: true, is_estimated: true },
+      { month: 'Feb 2027', air_conditioners: 65, refrigerators: 85, washing_machines: 94, water_purifiers: 79, room_combos: 55, is_forecast: true, is_estimated: true },
+      { month: 'Mar 2027', air_conditioners: 135, refrigerators: 110, washing_machines: 102, water_purifiers: 88, room_combos: 70, is_forecast: true, is_estimated: true },
+      { month: 'Apr 2027', air_conditioners: 198, refrigerators: 145, washing_machines: 108, water_purifiers: 94, room_combos: 82, is_forecast: true, is_estimated: true }
     ];
 
-    // City Profitability & Market Penetration (Dynamically aggregated from live rentals + operational benchmarks)
+    // City Profitability & Market Penetration (computed from live database rentals)
     const cityAgg = await db.collection('rentals').aggregate([
       {
         $group: {
@@ -729,6 +795,7 @@ router.get(['/admin/bi-analytics/', '/admin/business-intelligence/'], async (req
         }
       }
     ]).toArray();
+
     const cityDataMap = new Map(cityAgg.map(c => [String(c._id).toLowerCase(), c]));
 
     const standardCities = [
@@ -753,22 +820,22 @@ router.get(['/admin/bi-analytics/', '/admin/business-intelligence/'], async (req
       };
     });
 
-    // Customer Cohort Retention Heatmap
+    // Customer Cohort Retention (labeled as sample benchmark cohort)
     const cohortRetention = [
-      { cohort: 'May 2026', m1: 100, m2: 96, m3: 92, m4: 88, m5: 85, m6: 82 },
-      { cohort: 'Jun 2026', m1: 100, m2: 97, m3: 94, m4: 90, m5: 87, m6: null },
-      { cohort: 'Jul 2026', m1: 100, m2: 98, m3: 95, m4: 92, m5: null, m6: null },
-      { cohort: 'Aug 2026', m1: 100, m2: 97, m3: 94, m4: null, m5: null, m6: null },
-      { cohort: 'Sep 2026', m1: 100, m2: 98, m3: null, m4: null, m5: null, m6: null },
-      { cohort: 'Oct 2026', m1: 100, m2: null, m3: null, m4: null, m5: null, m6: null }
+      { cohort: 'May 2026', m1: 100, m2: 96, m3: 92, m4: 88, m5: 85, m6: 82, is_sample_cohort: true },
+      { cohort: 'Jun 2026', m1: 100, m2: 97, m3: 94, m4: 90, m5: 87, m6: null, is_sample_cohort: true },
+      { cohort: 'Jul 2026', m1: 100, m2: 98, m3: 95, m4: 92, m5: null, m6: null, is_sample_cohort: true },
+      { cohort: 'Aug 2026', m1: 100, m2: 97, m3: 94, m4: null, m5: null, m6: null, is_sample_cohort: true },
+      { cohort: 'Sep 2026', m1: 100, m2: 98, m3: null, m4: null, m5: null, m6: null, is_sample_cohort: true },
+      { cohort: 'Oct 2026', m1: 100, m2: null, m3: null, m4: null, m5: null, m6: null, is_sample_cohort: true }
     ];
 
     // Asset Status Breakdown
     const assetStatusBreakdown = [
       { name: 'Active on Lease', value: fleetUtilizationPct, color: '#10b981' },
-      { name: 'Ready in Hubs', value: Math.max(8, 100 - fleetUtilizationPct - 7 - 3), color: '#3b82f6' },
-      { name: 'In 28-Pt Refurbishment', value: 7, color: '#f59e0b' },
-      { name: 'Transit & Dispatch', value: 3, color: '#8b5cf6' }
+      { name: 'Ready in Hubs', value: Math.max(0, 100 - fleetUtilizationPct - 10), color: '#3b82f6' },
+      { name: 'In 28-Pt Refurbishment', value: Math.min(7, Math.max(0, 100 - fleetUtilizationPct)), color: '#f59e0b' },
+      { name: 'Transit & Dispatch', value: Math.min(3, Math.max(0, 100 - fleetUtilizationPct)), color: '#8b5cf6' }
     ];
 
     return res.status(200).json({
@@ -786,7 +853,7 @@ router.get(['/admin/bi-analytics/', '/admin/business-intelligence/'], async (req
       fleet_kpis: {
         fleet_utilization_pct: fleetUtilizationPct,
         active_leased_units: activeRentals.length,
-        ready_units_in_depots: Math.max(12, totalFleetUnits - activeRentals.length - 5),
+        ready_units_in_depots: Math.max(12, totalCatalogUnits - activeRentals.length - 5),
         under_refurbishment_units: 5,
         turnaround_time_days: 1.8
       },
@@ -803,26 +870,36 @@ router.get(['/admin/bi-analytics/', '/admin/business-intelligence/'], async (req
   }
 });
 
-// POST /api/admin/ml/recompute-churn (Live LightGBM & TreeSHAP ETL Pipeline Execution)
-router.post('/admin/ml/recompute-churn', async (req, res) => {
-  try {
-    const { runPythonScript } = require('../utils/pythonRunner');
-    const result = await runPythonScript('ml_pipeline/etl_pipeline.py', [], 60000);
-    const db = getDb();
-    const updatedCount = await db.collection('user_churn_scores').countDocuments();
-    return res.status(200).json({
-      success: true,
-      message: 'LightGBM Churn & TreeSHAP Pipeline completed successfully.',
-      records_synced: updatedCount,
-      output: result.stdout
-    });
-  } catch (err) {
-    console.error('ML Churn Pipeline execution error:', err.message);
-    return res.status(500).json({
-      error: 'Failed to execute churn prediction pipeline',
-      details: err.message
+let isChurnJobRunning = false;
+
+// POST /api/admin/ml/recompute-churn (Non-blocking background LightGBM & TreeSHAP execution)
+router.post('/admin/ml/recompute-churn', authenticateJWT, requireRole('admin'), async (req, res) => {
+  if (isChurnJobRunning) {
+    return res.status(409).json({
+      error: 'Churn prediction pipeline is already running in background.',
+      status: 'RUNNING'
     });
   }
+
+  isChurnJobRunning = true;
+  const { runPythonScript } = require('../utils/pythonRunner');
+
+  // Trigger non-blocking asynchronous execution
+  runPythonScript('ml_pipeline/etl_pipeline.py', [], 90000)
+    .then(async (result) => {
+      console.log('[ML Pipeline] Churn ETL completed successfully.');
+      isChurnJobRunning = false;
+    })
+    .catch((err) => {
+      console.error('[ML Pipeline] Churn ETL error:', err.message);
+      isChurnJobRunning = false;
+    });
+
+  return res.status(202).json({
+    success: true,
+    message: 'LightGBM Churn & TreeSHAP Pipeline started in background. Results will sync shortly.',
+    status: 'ACCEPTED'
+  });
 });
 
 // GET /api/admin/ml/churn-stats (ML Intelligence Summary)
@@ -855,6 +932,108 @@ router.get('/admin/ml/churn-stats', async (req, res) => {
     });
   } catch (err) {
     return res.status(500).json({ error: 'Failed to fetch ML churn statistics' });
+  }
+});
+
+
+// -----------------------------------------------------------------------------
+// MODULE 12: AUTOMATED LATE FEE CALCULATION & SCHEDULER CONTROLS
+// -----------------------------------------------------------------------------
+const { calculateAndApplyLateFees } = require('../utils/lateFeeScheduler');
+
+// POST /api/admin/run-late-fee-scheduler
+// Manually triggers or simulates the automated overnight late fee calculation engine
+router.post('/admin/run-late-fee-scheduler', async (req, res) => {
+  try {
+    const db = getDb();
+    const options = {
+      asOfDate: req.body.as_of_date || null,
+      graceDays: req.body.grace_days !== undefined ? parseInt(req.body.grace_days, 10) : undefined,
+      ratePerDay: req.body.rate_per_day !== undefined ? parseFloat(req.body.rate_per_day) : undefined
+    };
+
+    const summary = await calculateAndApplyLateFees(db, options);
+
+    return res.status(200).json({
+      success: true,
+      message: `Automated late fee scan executed successfully. Evaluated ${summary.scanned_rentals} active leases.`,
+      ...summary
+    });
+  } catch (err) {
+    console.error('Run late fee scheduler error:', err);
+    return res.status(500).json({ error: 'Failed to execute late fee scheduler', details: err.message });
+  }
+});
+
+// GET /api/admin/overdue-rentals
+// Returns all leases currently identified as overdue with fine calculations
+router.get('/admin/overdue-rentals', async (req, res) => {
+  try {
+    const db = getDb();
+    const overdueList = await db.collection('rentals')
+      .find({
+        status: 'active',
+        $or: [
+          { billing_status: 'OVERDUE' },
+          { accumulated_late_fee: { $gt: 0 } },
+          { late_days: { $gt: 0 } }
+        ]
+      })
+      .sort({ accumulated_late_fee: -1 })
+      .toArray();
+
+    const recentAudits = await db.collection('late_fee_audit_logs')
+      .find({})
+      .sort({ created_at: -1 })
+      .limit(30)
+      .toArray();
+
+    const totalOverdueFines = overdueList.reduce((sum, r) => sum + (r.accumulated_late_fee || 0), 0);
+
+    return res.status(200).json({
+      overdue_count: overdueList.length,
+      total_accumulated_fines: Math.round(totalOverdueFines * 100) / 100,
+      overdue_rentals: overdueList,
+      recent_audit_logs: recentAudits,
+      evaluated_at: new Date().toISOString()
+    });
+  } catch (err) {
+    console.error('Fetch overdue rentals error:', err);
+    return res.status(500).json({ error: 'Failed to fetch overdue rentals' });
+  }
+});
+
+// POST /api/admin/customers/:id/retention-perk (VIP Retention Perk)
+router.post('/admin/customers/:id/retention-perk', authenticateJWT, requireRole('admin'), async (req, res) => {
+  try {
+    const db = getDb();
+    const customerId = req.params.id;
+    const { discount_percent = 15, coupon_code = 'RETENTION15', customer_email, customer_name } = req.body;
+
+    await db.collection('coupons').updateOne(
+      { code: coupon_code },
+      {
+        $set: {
+          code: coupon_code,
+          type: 'percent',
+          discountPercent: discount_percent,
+          minOrderValue: 0,
+          description: `Special ${discount_percent}% VIP Retention Discount for ${customer_name || customerId}`,
+          target_user: customerId,
+          active: true,
+          created_at: new Date()
+        }
+      },
+      { upsert: true }
+    );
+
+    return res.status(200).json({
+      success: true,
+      message: `15% VIP Retention Perk (${coupon_code}) successfully dispatched to ${customer_name || customer_email || customerId}!`
+    });
+  } catch (err) {
+    console.error('Retention perk error:', err);
+    return res.status(500).json({ error: 'Failed to dispatch retention perk' });
   }
 });
 

@@ -11,7 +11,7 @@ const CURATED_COMBOS = [
     monthlyPrice: 1299,
     originalPrice: 1699,
     savingsBadge: 'Save ₹400/mo',
-    image: 'https://images.unsplash.com/photo-1555041469-a586c61ea9bc?auto=format&fit=crop&q=80&w=800',
+    image: 'https://images.unsplash.com/photo-1554995207-c18c203602cb?auto=format&fit=crop&q=80&w=800',
     tag: 'Trending Combo'
   },
   {
@@ -22,7 +22,7 @@ const CURATED_COMBOS = [
     monthlyPrice: 849,
     originalPrice: 1149,
     savingsBadge: 'Save ₹300/mo',
-    image: 'https://images.unsplash.com/photo-1518455027359-f3f8164ba6bd?auto=format&fit=crop&q=80&w=800',
+    image: 'https://images.unsplash.com/photo-1519974719765-e6559eac2575?auto=format&fit=crop&q=80&w=800',
     tag: 'WFH Best Seller'
   },
   {
@@ -33,7 +33,7 @@ const CURATED_COMBOS = [
     monthlyPrice: 1199,
     originalPrice: 1549,
     savingsBadge: 'Save ₹350/mo',
-    image: 'https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&q=80&w=800',
+    image: 'https://images.unsplash.com/photo-1616594039964-ae9021a400a0?auto=format&fit=crop&q=80&w=800',
     tag: 'Couples Favorite'
   },
   {
@@ -44,7 +44,7 @@ const CURATED_COMBOS = [
     monthlyPrice: 1549,
     originalPrice: 2099,
     savingsBadge: 'Save ₹550/mo',
-    image: 'https://images.unsplash.com/photo-1556911220-e15b29be8c8f?auto=format&fit=crop&q=80&w=800',
+    image: 'https://images.unsplash.com/photo-1600566753376-12c8ab7fb75b?auto=format&fit=crop&q=80&w=800',
     tag: 'Essential Pack'
   }
 ];
@@ -81,7 +81,7 @@ export default function CuratedRoomCombos({ onRentCombo }) {
   };
 
   return (
-    <section className="curated-combos-section" style={{ maxWidth: '1280px', margin: '4rem auto 0', padding: '0 1.5rem' }}>
+    <section id="curated-combos-section" className="curated-combos-section" style={{ maxWidth: '1280px', margin: '4rem auto 0', padding: '0 1.5rem' }}>
       
       {/* Section Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.75rem', flexWrap: 'wrap', gap: '1rem' }}>
@@ -154,6 +154,10 @@ export default function CuratedRoomCombos({ onRentCombo }) {
                   src={combo.image}
                   alt={combo.title}
                   style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                  onError={(e) => {
+                    e.currentTarget.onerror = null;
+                    e.currentTarget.src = 'https://images.unsplash.com/photo-1555041469-a586c61ea9bc?auto=format&fit=crop&q=80&w=800';
+                  }}
                 />
                 <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(0,0,0,0.6) 0%, transparent 60%)' }} />
 

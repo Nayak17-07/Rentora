@@ -75,28 +75,71 @@ function getIO() {
   return io;
 }
 
+function sanitizeLogData(data) {
+  if (!data || typeof data !== 'object') return data;
+  const sanitized = { ...data };
+  const sensitiveKeys = ['password', 'secret', 'token', 'key', 'phone', 'email', 'card', 'cvv'];
+  for (const k of Object.keys(sanitized)) {
+    if (sensitiveKeys.some(sk => k.toLowerCase().includes(sk))) {
+      sanitized[k] = '[REDACTED]';
+    }
+  }
+  return sanitized;
+}
+
 function notifyAdmin(event, data) {
-  if (io) {
-    // Dispatch securely ONLY to room:admin; eliminated global data leak to general clients
+  if (!io) {
+    console.warn(`[Socket Warning] Cannot emit '${event}' to admin room: Socket.IO server is not initialized.`);
+    return { sent: false, reason: 'uninitialized' };
+  }
+  try {
     io.to('room:admin').emit(event, { ...data, timestamp: new Date().toISOString() });
+    return { sent: true };
+  } catch (err) {
+    console.error(`[Socket Error] Failed to emit '${event}' to admin room:`, err.message, sanitizeLogData(data));
+    return { sent: false, error: err.message };
   }
 }
 
 function notifyUser(userId, event, data) {
-  if (io && userId) {
+  if (!io || !userId) {
+    if (!io) console.warn(`[Socket Warning] Cannot emit '${event}' to user: Socket.IO server is not initialized.`);
+    return { sent: false, reason: !io ? 'uninitialized' : 'missing_user_id' };
+  }
+  try {
     io.to(`room:user_${userId}`).emit(event, { ...data, timestamp: new Date().toISOString() });
+    return { sent: true };
+  } catch (err) {
+    console.error(`[Socket Error] Failed to emit '${event}' to user room:`, err.message);
+    return { sent: false, error: err.message };
   }
 }
 
 function notifyOwner(ownerId, event, data) {
-  if (io && ownerId) {
+  if (!io || !ownerId) {
+    if (!io) console.warn(`[Socket Warning] Cannot emit '${event}' to owner: Socket.IO server is not initialized.`);
+    return { sent: false, reason: !io ? 'uninitialized' : 'missing_owner_id' };
+  }
+  try {
     io.to(`room:owner_${ownerId}`).emit(event, { ...data, timestamp: new Date().toISOString() });
+    return { sent: true };
+  } catch (err) {
+    console.error(`[Socket Error] Failed to emit '${event}' to owner room:`, err.message);
+    return { sent: false, error: err.message };
   }
 }
 
 function broadcastEvent(event, data) {
-  if (io) {
+  if (!io) {
+    console.warn(`[Socket Warning] Cannot broadcast '${event}': Socket.IO server is not initialized.`);
+    return { sent: false, reason: 'uninitialized' };
+  }
+  try {
     io.emit(event, { ...data, timestamp: new Date().toISOString() });
+    return { sent: true };
+  } catch (err) {
+    console.error(`[Socket Error] Failed to broadcast '${event}':`, err.message);
+    return { sent: false, error: err.message };
   }
 }
 

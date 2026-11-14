@@ -39,7 +39,7 @@ const BusinessIntelligenceTab = ({ onExport }) => {
   const fetchBi = async () => {
     try {
       setLoading(true);
-      const res = await fetchWithAuth('http://localhost:8000/api/admin/bi-analytics/');
+      const res = await fetchWithAuth('/api/admin/bi-analytics/');
       if (res.ok) {
         const data = await res.json();
         setBiData(data);
@@ -62,7 +62,7 @@ const BusinessIntelligenceTab = ({ onExport }) => {
     if (onExport) {
       onExport('financials');
     } else {
-      window.open('http://localhost:8000/api/admin/export/?type=financials', '_blank');
+      window.open('/api/admin/export/?type=financials', '_blank');
     }
   };
 

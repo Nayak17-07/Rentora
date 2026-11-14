@@ -38,8 +38,8 @@ router.post('/auth/send-signup-otp/', otpLimiter, async (req, res) => {
       return res.status(400).json({ error: 'An account with this email already exists. Please log in.' });
     }
 
-    // Generate secure 6-digit OTP
-    const otp = String(Math.floor(100000 + Math.random() * 900000));
+    // Generate cryptographically secure 6-digit OTP
+    const otp = String(crypto.randomInt(100000, 1000000));
     const now = new Date();
     const expiresAt = new Date(now.getTime() + 10 * 60 * 1000); // 10 minutes expiry
 
@@ -346,7 +346,7 @@ router.post('/auth/password-reset-request/', otpLimiter, async (req, res) => {
       });
     }
 
-    const otp = String(Math.floor(100000 + Math.random() * 900000));
+    const otp = String(crypto.randomInt(100000, 1000000));
     const expiresAt = new Date(now.getTime() + 15 * 60 * 1000); // 15 mins
 
     await db.collection('password_resets').updateOne(
@@ -448,6 +448,9 @@ router.get('/auth/me/', authenticateJWT, async (req, res) => {
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
     }
+    user.is_owner = Boolean(user.is_owner || user.role === 'owner');
+    user.is_admin = Boolean(user.role === 'admin');
+    user.roles = user.roles || ['customer', user.role].filter(Boolean);
     return res.status(200).json(user);
   } catch (err) {
     console.error('Fetch me error:', err);
@@ -455,8 +458,8 @@ router.get('/auth/me/', authenticateJWT, async (req, res) => {
   }
 });
 
-// PATCH /api/auth/switch-role/ (Switch active role between customer and owner)
-router.patch('/auth/switch-role/', authenticateJWT, async (req, res) => {
+// PATCH & POST /api/auth/switch-role/ (Switch active mode between customer and owner)
+const handleSwitchRole = async (req, res) => {
   try {
     const { role } = req.body;
     const allowedRoles = ['customer', 'owner'];
@@ -467,9 +470,23 @@ router.patch('/auth/switch-role/', authenticateJWT, async (req, res) => {
     }
 
     const db = getDb();
+    const updateSet = {
+      role, // active display context
+      updated_at: new Date()
+    };
+
+    if (role === 'owner') {
+      updateSet.is_owner = true;
+      updateSet['owner_profile.activated_at'] = new Date();
+      updateSet['owner_profile.is_active'] = true;
+    }
+
     await db.collection('users').updateOne(
       { _id: req.user.id },
-      { $set: { role, updated_at: new Date() } }
+      { 
+        $set: updateSet,
+        $addToSet: { roles: role }
+      }
     );
 
     const updated = await db.collection('users').findOne(
@@ -479,12 +496,19 @@ router.patch('/auth/switch-role/', authenticateJWT, async (req, res) => {
 
     return res.status(200).json({
       success: `Switched active role to ${role}`,
-      user: updated
+      user: {
+        ...updated,
+        is_owner: Boolean(updated.is_owner || updated.role === 'owner'),
+        roles: updated.roles || ['customer', updated.role].filter(Boolean)
+      }
     });
   } catch (err) {
     console.error('Switch role error:', err);
     return res.status(500).json({ error: 'Internal server error switching role' });
   }
-});
+};
+
+router.patch('/auth/switch-role/', authenticateJWT, handleSwitchRole);
+router.post('/auth/switch-role/', authenticateJWT, handleSwitchRole);
 
 module.exports = router;

@@ -1,3 +1,4 @@
+import { showToast } from './utils/toast';
 import React, { useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
@@ -90,7 +91,7 @@ export default function RentoraConcierge() {
     setLoading(true);
 
     try {
-      const res = await fetch('http://localhost:8000/api/concierge/chat', {
+      const res = await fetchWithAuth('/api/concierge/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -181,14 +182,14 @@ export default function RentoraConcierge() {
   const handleAddToCart = async (item) => {
     const token = localStorage.getItem('access_token');
     if (!token) {
-      alert("Please log in to add items to your cart.");
+      showToast.info("Please log in to add items to your cart.", "Authentication Required");
       navigate('/login');
       return;
     }
 
     setAddingCardId(item.appliance_id);
     try {
-      const res = await fetchWithAuth('http://localhost:8000/api/cart/', {
+      const res = await fetchWithAuth('/api/cart/', {
         method: 'POST',
         body: JSON.stringify({
           appliance_id: item.appliance_id,
@@ -209,11 +210,11 @@ export default function RentoraConcierge() {
         setTimeout(() => setAddedCardId(null), 3000);
       } else {
         const err = await res.json().catch(() => ({}));
-        alert(err.error || "Could not add item to cart.");
+        showToast.error(err.error || "Could not add item to cart.", "Cart Error");
       }
     } catch (e) {
       console.error("Cart addition error:", e);
-      alert("Error adding item to cart.");
+      showToast.error("Error adding item to cart.", "Cart Error");
     } finally {
       setAddingCardId(null);
     }

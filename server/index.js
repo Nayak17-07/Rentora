@@ -4,14 +4,16 @@ const http = require('http');
 const app = require('./src/app');
 const { connectDb } = require('./src/db');
 const { initSocket } = require('./src/socket');
+const { initLateFeeScheduler } = require('./src/utils/lateFeeScheduler');
 
 const PORT = process.env.PORT || 8000;
 
 async function startServer() {
   try {
-    await connectDb();
+    const db = await connectDb();
     const server = http.createServer(app);
     initSocket(server);
+    initLateFeeScheduler(db);
 
     server.listen(PORT, () => {
       console.log(`====================================================`);

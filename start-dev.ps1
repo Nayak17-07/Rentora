@@ -1,12 +1,17 @@
-# RentAI - Full Stack Dev Startup Script (PowerShell)
+# Rentora - Full Stack Dev Startup Script (PowerShell)
 # Run with: powershell -ExecutionPolicy Bypass -File start-dev.ps1
 
 $ROOT = Split-Path -Parent $MyInvocation.MyCommand.Path
-$MONGO_BIN = "C:\Program Files\MongoDB\Server\8.3\bin\mongod.exe"
 $MONGO_DATA = "C:\data\db"
 
+# Find installed mongod.exe
+$MONGO_BIN = Get-ChildItem "C:\Program Files\MongoDB\Server\*\bin\mongod.exe" -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty FullName
+if (-not $MONGO_BIN) {
+    $MONGO_BIN = "C:\Program Files\MongoDB\Server\9.0\bin\mongod.exe"
+}
+
 Write-Host "==========================================" -ForegroundColor Cyan
-Write-Host "   RentAI - Full Stack Dev Startup" -ForegroundColor Cyan
+Write-Host "   Rentora - Full Stack Dev Startup" -ForegroundColor Cyan
 Write-Host "==========================================" -ForegroundColor Cyan
 
 # 1. Ensure MongoDB data dir
@@ -15,10 +20,19 @@ if (-not (Test-Path $MONGO_DATA)) {
     Write-Host "[+] Created MongoDB data dir: $MONGO_DATA" -ForegroundColor Yellow
 }
 
-# 2. Start MongoDB
-Write-Host "`n[1/3] Starting MongoDB on port 27017..." -ForegroundColor Green
-Start-Process -FilePath $MONGO_BIN -ArgumentList "--dbpath `"$MONGO_DATA`" --port 27017" -WindowStyle Minimized
-Start-Sleep -Seconds 2
+# 2. Check if MongoDB is already running
+$mongoActive = Get-NetTCPConnection -LocalPort 27017 -State Listen -ErrorAction SilentlyContinue
+if ($mongoActive) {
+    Write-Host "`n[1/3] MongoDB is already active and listening on port 27017." -ForegroundColor Green
+} else {
+    Write-Host "`n[1/3] Starting MongoDB on port 27017 using: $MONGO_BIN..." -ForegroundColor Green
+    if (Test-Path $MONGO_BIN) {
+        Start-Process -FilePath $MONGO_BIN -ArgumentList "--dbpath `"$MONGO_DATA`" --port 27017" -WindowStyle Minimized
+        Start-Sleep -Seconds 2
+    } else {
+        Write-Host "   WARNING: mongod.exe not found at $MONGO_BIN. Assuming external MongoDB service." -ForegroundColor Yellow
+    }
+}
 
 # Verify MongoDB is up
 try {

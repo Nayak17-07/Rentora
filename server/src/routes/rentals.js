@@ -641,4 +641,267 @@ router.post('/rentals/:rental_id/confirm-delivery/', authenticateJWT, async (req
   }
 });
 
+
+// -----------------------------------------------------------------------------
+// MODULE 4: DIGITAL RENTAL AGREEMENT & E-SIGN LEGAL CONTRACT ENGINE
+// -----------------------------------------------------------------------------
+
+// GET /api/rentals/:rental_id/agreement
+router.get('/rentals/:rental_id/agreement', authenticateJWT, async (req, res) => {
+  try {
+    const db = getDb();
+    const rentalId = req.params.rental_id;
+    const rental = await db.collection('rentals').findOne({ _id: rentalId });
+
+    if (!rental) {
+      return res.status(404).json({ error: 'Rental contract not found' });
+    }
+
+    if (rental.user_id !== req.user.id && req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Unauthorized to view this digital agreement' });
+    }
+
+    const user = await db.collection('users').findOne({ _id: rental.user_id }, { projection: { password: 0 } });
+    const kyc = await db.collection('kyc').findOne({ user_id: rental.user_id });
+
+    const tenantName = kyc?.full_name || user?.username || rental.delivery_address?.recipient_name || 'Tenant User';
+    const rentedDate = rental.rented_at ? new Date(rental.rented_at) : new Date();
+
+    const agreement = rental.digital_lease_agreement || {
+      agreement_id: `AGR-IN-${String(rental._id).slice(0, 8).toUpperCase()}`,
+      stamp_duty_reference: `E-STAMP-IND-${String(rental._id).slice(0, 6).toUpperCase()}-2026`,
+      agreement_status: 'EXECUTED_DIGITALLY',
+      executed_at: rentedDate.toISOString(),
+      signer_name: tenantName,
+      signer_ip: req.ip || req.headers['x-forwarded-for'] || '127.0.0.1',
+      signature_type: 'CRYPTOGRAPHIC_HMAC_ESIGN',
+      signature_hash: crypto.createHash('sha256').update(`${rental._id}_${rental.user_id}_${rental.rented_at}`).digest('hex'),
+      lessor: {
+        company_name: 'Rentora Logistics & Household Rentals Pvt. Ltd.',
+        cin: 'U72900TG2026PTC184912',
+        registered_office: 'Level 4, High-Tech City Hub, Hyderabad, Telangana 500081',
+        representative: 'Automated Asset Custody & Escrow Trustee'
+      },
+      lessee: {
+        full_name: tenantName,
+        user_id: rental.user_id,
+        email: user?.email || '',
+        phone: rental.delivery_address?.phone || user?.phone_num || '',
+        verified_address: rental.delivery_address?.formatted_address || 'Customer Delivery Address'
+      },
+      asset_details: {
+        rental_name: rental.rental_name,
+        category: rental.category_id,
+        tenure_months: parseInt(rental.tenure, 10) || 6,
+        monthly_rent_inr: rental.monthly_rent,
+        security_deposit_inr: rental.security_deposit,
+        escrow_id: rental.escrow_id || 'ESC-BLR-ACTIVE'
+      },
+      binding_covenants: [
+        {
+          clause_num: 1,
+          title: 'Fixed Subscription Commitment & Rent Schedule',
+          text: `The Lessee commits to a minimum subscription tenure of ${rental.tenure || 6} months at a monthly rental of ?${rental.monthly_rent}. Monthly dues are payable in advance on or before the due date.`
+        },
+        {
+          clause_num: 2,
+          title: 'RBI-Compliant Escrow Deposit Protection',
+          text: `A refundable security deposit of ?${rental.security_deposit} has been transferred and locked under Segregated Escrow Custody (Escrow ID: ${rental.escrow_id || 'ESC-BLR-ACTIVE'}). The deposit shall remain inviolable against arbitrary commercial forfeiture.`
+        },
+        {
+          clause_num: 3,
+          title: 'Rentora Shield ?10,000 Accidental Damage Waiver',
+          text: 'The appliance is protected by a built-in ?10,000 accidental damage waiver covering electrical surges, minor fabric scuffs, and normal wear-and-tear with ?0 deposit deduction.'
+        },
+        {
+          clause_num: 4,
+          title: 'Overdue Penalty & Late Fee Regulation',
+          text: 'In the event that the Lessee retains possession beyond the agreed lease expiry without renewal or formal return scheduling, an automated late fee of ?50.00 per calendar day shall be assessed after an initial 2-day grace period.'
+        },
+        {
+          clause_num: 5,
+          title: 'Free Annual Maintenance & 24-Hour Doorstep SLA',
+          text: 'The Lessor provides 100% complimentary scheduled periodic maintenance, operational health checks, and a 24-hour technician response window in case of mechanical defect.'
+        },
+        {
+          clause_num: 6,
+          title: 'Rent-to-Own Equity Conversion Right',
+          text: 'Up to 70% of all cumulative monthly subscription payments made by the Lessee accrue as equity credit toward asset buyout, exercisable anytime via the platform.'
+        }
+      ]
+    };
+
+    return res.status(200).json({
+      success: true,
+      rental_id: rental._id,
+      agreement
+    });
+  } catch (err) {
+    console.error('Fetch agreement error:', err);
+    return res.status(500).json({ error: 'Failed to retrieve digital lease agreement' });
+  }
+});
+
+// POST /api/rentals/:rental_id/sign-agreement
+router.post('/rentals/:rental_id/sign-agreement', authenticateJWT, async (req, res) => {
+  try {
+    const db = getDb();
+    const rentalId = req.params.rental_id;
+    const { signer_name, signature_data_url, acceptance_confirmed } = req.body;
+
+    if (!acceptance_confirmed) {
+      return res.status(400).json({ error: 'You must explicitly confirm agreement acceptance to execute this legal lease contract.' });
+    }
+
+    const rental = await db.collection('rentals').findOne({ _id: rentalId });
+    if (!rental) {
+      return res.status(404).json({ error: 'Rental not found' });
+    }
+
+    if (rental.user_id !== req.user.id && req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Unauthorized to sign this agreement' });
+    }
+
+    const now = new Date();
+    const agreementDoc = {
+      agreement_id: `AGR-IN-${rentalId.slice(0, 8).toUpperCase()}`,
+      stamp_duty_reference: `E-STAMP-IND-${rentalId.slice(0, 6).toUpperCase()}-2026`,
+      agreement_status: 'EXECUTED_DIGITALLY',
+      signed_at: now.toISOString(),
+      signer_name: signer_name || req.user.username || 'Verified Customer',
+      signer_ip: req.ip || req.headers['x-forwarded-for'] || '127.0.0.1',
+      signature_data_url: signature_data_url || null,
+      signature_hash: crypto.createHash('sha256').update(`${rentalId}_${signer_name}_${now.toISOString()}`).digest('hex'),
+      acceptance_confirmed: true
+    };
+
+    await db.collection('rentals').updateOne(
+      { _id: rentalId },
+      {
+        $set: {
+          digital_lease_agreement: agreementDoc
+        }
+      }
+    );
+
+    return res.status(200).json({
+      success: true,
+      message: 'Digital lease agreement successfully executed and cryptographically sealed.',
+      agreement: agreementDoc
+    });
+  } catch (err) {
+    console.error('Sign agreement error:', err);
+    return res.status(500).json({ error: 'Failed to execute digital lease agreement' });
+  }
+});
+
+// POST /api/rentals/:rental_id/pause (Vacation Pause / Tenure Freeze)
+router.post('/rentals/:rental_id/pause', authenticateJWT, async (req, res) => {
+  try {
+    const db = getDb();
+    const rentalId = req.params.rental_id;
+    const userId = req.user.id;
+    const { pause_days = 30, reason = 'Vacation / Travel' } = req.body;
+
+    const rental = await db.collection('rentals').findOne({
+      $and: [
+        { $or: [{ _id: rentalId }, { rental_id: rentalId }] },
+        ...(req.user.role === 'admin' ? [] : [{ user_id: userId }])
+      ]
+    });
+
+    if (!rental) {
+      return res.status(404).json({ error: 'Rental subscription not found' });
+    }
+
+    if (rental.status === 'PAUSED') {
+      return res.status(400).json({ error: 'Rental subscription is already paused' });
+    }
+
+    if (rental.status !== 'active') {
+      return res.status(400).json({ error: `Cannot pause rental with status: ${rental.status}` });
+    }
+
+    const pauseDays = parseInt(pause_days, 10) || 30;
+    const now = new Date();
+    const pauseUntil = new Date(now.getTime() + pauseDays * 86400000);
+
+    const currentBilling = rental.next_billing_date ? new Date(rental.next_billing_date) : now;
+    const newBilling = new Date(currentBilling.getTime() + pauseDays * 86400000);
+
+    const updateFields = {
+      status: 'PAUSED',
+      paused_at: now.toISOString(),
+      pause_until: pauseUntil.toISOString(),
+      pause_days: pauseDays,
+      pause_reason: String(reason).trim(),
+      holding_fee: 199,
+      next_billing_date: newBilling.toISOString(),
+      updated_at: now
+    };
+
+    await db.collection('rentals').updateOne(
+      { _id: rental._id },
+      { $set: updateFields }
+    );
+
+    return res.status(200).json({
+      success: true,
+      message: `Vacation pause activated for ${pauseDays} days! Monthly rental is frozen.`,
+      pause_until: pauseUntil.toISOString(),
+      next_billing_date: newBilling.toISOString(),
+      holding_fee: 199
+    });
+  } catch (err) {
+    console.error('Vacation pause error:', err);
+    return res.status(500).json({ error: 'Internal server error activating vacation pause' });
+  }
+});
+
+// POST /api/rentals/:rental_id/resume (Resume Active Subscription)
+router.post('/rentals/:rental_id/resume', authenticateJWT, async (req, res) => {
+  try {
+    const db = getDb();
+    const rentalId = req.params.rental_id;
+    const userId = req.user.id;
+
+    const rental = await db.collection('rentals').findOne({
+      $and: [
+        { $or: [{ _id: rentalId }, { rental_id: rentalId }] },
+        ...(req.user.role === 'admin' ? [] : [{ user_id: userId }])
+      ]
+    });
+
+    if (!rental) {
+      return res.status(404).json({ error: 'Rental subscription not found' });
+    }
+
+    if (rental.status !== 'PAUSED') {
+      return res.status(400).json({ error: 'Rental subscription is not currently paused' });
+    }
+
+    const now = new Date();
+    await db.collection('rentals').updateOne(
+      { _id: rental._id },
+      { 
+        $set: { 
+          status: 'active',
+          resumed_at: now.toISOString(),
+          pause_until: null,
+          updated_at: now
+        }
+      }
+    );
+
+    return res.status(200).json({
+      success: true,
+      message: 'Subscription successfully resumed! Full active coverage is restored.'
+    });
+  } catch (err) {
+    console.error('Resume rental error:', err);
+    return res.status(500).json({ error: 'Internal server error resuming rental subscription' });
+  }
+});
+
 module.exports = router;
+

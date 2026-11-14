@@ -1,3 +1,4 @@
+import { showToast } from './utils/toast';
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { WifiOff, RefreshCw } from 'lucide-react';
@@ -8,7 +9,7 @@ const OfflinePage = () => {
     if (navigator.onLine) {
       window.location.reload();
     } else {
-      alert('Still offline. Please check your internet connection.');
+      showToast.error('Still offline. Please check your internet connection.', 'Offline');
     }
   };
 

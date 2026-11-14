@@ -36,7 +36,7 @@ export const loadRazorpayScript = () => {
  */
 export const fetchRazorpayConfig = async () => {
   try {
-    const res = await fetchWithAuth('http://localhost:8000/api/payments/config');
+    const res = await fetchWithAuth('/api/payments/config');
     if (res.ok) {
       return await res.json();
     }
@@ -56,7 +56,7 @@ export const fetchRazorpayConfig = async () => {
  * Creates an order on the backend for Razorpay checkout
  */
 export const createRazorpayOrder = async (amount, notes = {}) => {
-  const res = await fetchWithAuth('http://localhost:8000/api/payments/create-order', {
+  const res = await fetchWithAuth('/api/payments/create-order', {
     method: 'POST',
     body: JSON.stringify({
       amount: parseFloat(amount),
@@ -77,7 +77,7 @@ export const createRazorpayOrder = async (amount, notes = {}) => {
  * Verifies cryptographic HMAC-SHA256 signature on the backend
  */
 export const verifyRazorpayPayment = async (paymentResponse) => {
-  const res = await fetchWithAuth('http://localhost:8000/api/payments/verify-signature', {
+  const res = await fetchWithAuth('/api/payments/verify-signature', {
     method: 'POST',
     body: JSON.stringify({
       razorpay_order_id: paymentResponse.razorpay_order_id,

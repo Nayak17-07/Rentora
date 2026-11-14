@@ -143,7 +143,10 @@ async function authenticateJWT(req, res, next) {
       _id: user._id,
       username: user.username,
       email: user.email,
-      role: user.role || 'customer'
+      role: user.role || 'customer',
+      roles: user.roles || [user.role || 'customer'],
+      is_owner: Boolean(user.is_owner || user.role === 'owner'),
+      is_admin: Boolean(user.role === 'admin')
     };
     next();
   } catch (err) {
@@ -192,7 +195,17 @@ function requireRole(...allowedRoles) {
       return res.status(401).json({ detail: 'Authentication credentials were not provided.' });
     }
     const userRole = req.user.role || 'customer';
-    if (!allowedRoles.includes(userRole)) {
+    const userRoles = req.user.roles || [userRole];
+    const isOwner = req.user.is_owner || userRoles.includes('owner') || userRole === 'owner';
+    const isAdmin = req.user.is_admin || userRole === 'admin';
+
+    const hasPermission =
+      isAdmin ||
+      allowedRoles.includes(userRole) ||
+      (allowedRoles.includes('owner') && isOwner) ||
+      userRoles.some(r => allowedRoles.includes(r));
+
+    if (!hasPermission) {
       return res.status(403).json({
         error: `Forbidden: Access requires one of [${allowedRoles.join(', ')}]. Current role: '${userRole}'`
       });

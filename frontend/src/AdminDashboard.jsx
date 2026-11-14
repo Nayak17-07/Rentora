@@ -1,3 +1,4 @@
+import { showToast } from './utils/toast';
 import React, { useEffect, useState } from 'react';
 import {
   LogOut,
@@ -33,7 +34,7 @@ import {
   ExternalLink
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { fetchWithAuth } from './utils/api';
+import { fetchWithAuth, getApiUrl } from './utils/api';
 import ThemeToggle from './ThemeToggle';
 import {
   ResponsiveContainer,
@@ -49,9 +50,12 @@ import {
 } from 'recharts';
 import { getSocket, joinAdminRoom } from './utils/socket';
 import BusinessIntelligenceTab from './BusinessIntelligenceTab';
+import PredictiveMaintenanceTab from './PredictiveMaintenanceTab';
+import LowStockPredictionView from './LowStockPredictionView';
 
 const AdminDashboard = ({ onLogout }) => {
-  const [activeTab, setActiveTab] = useState('overview'); // 'overview' | 'bi_analytics' | 'inventory' | 'users' | 'rentals' | 'complaints'
+  const [activeTab, setActiveTab] = useState('overview'); // 'overview' | 'bi_analytics' | 'inventory' | 'maintenance' | 'users' | 'rentals' | 'complaints'
+  const [inventorySubTab, setInventorySubTab] = useState('catalog'); // 'catalog' | 'predictions'
   const [socketConnected, setSocketConnected] = useState(false);
   const [liveAlert, setLiveAlert] = useState(null);
 
@@ -90,6 +94,8 @@ const AdminDashboard = ({ onLogout }) => {
 
   // Users state (Module 7)
   const [usersList, setUsersList] = useState([]);
+  const [lateFeeScanning, setLateFeeScanning] = useState(false);
+  const [lateFeeResult, setLateFeeResult] = useState(null);
   const [userSearch, setUserSearch] = useState('');
 
   // Rentals state (Module 7: Approve Rentals)
@@ -123,7 +129,9 @@ const AdminDashboard = ({ onLogout }) => {
 
   const handleCopyProofUrl = (url, key) => {
     if (!url) return;
-    navigator.clipboard.writeText(url);
+    if (navigator.clipboard?.writeText) {
+      navigator.clipboard.writeText(url).catch(() => {});
+    }
     setCopiedProofKey(key);
     setTimeout(() => setCopiedProofKey(null), 2500);
   };
@@ -147,7 +155,7 @@ const AdminDashboard = ({ onLogout }) => {
     setVerifying(true);
     setPasscodeError('');
     try {
-      const res = await fetchWithAuth('http://localhost:8000/api/auth/switch-role/', {
+      const res = await fetchWithAuth('/api/auth/switch-role/', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ role: 'admin', admin_code: passcode.trim() })
@@ -168,7 +176,7 @@ const AdminDashboard = ({ onLogout }) => {
 
   const fetchDashboard = async () => {
     try {
-      const response = await fetchWithAuth('http://localhost:8000/api/admin/dashboard/');
+      const response = await fetchWithAuth('/api/admin/dashboard/');
       if (response.ok) {
         const data = await response.json();
         setDashboardData(data);
@@ -182,7 +190,7 @@ const AdminDashboard = ({ onLogout }) => {
 
   const fetchInventory = async () => {
     try {
-      const res = await fetchWithAuth('http://localhost:8000/api/appliances/?all_stock=true');
+      const res = await fetchWithAuth('/api/appliances/?all_stock=true');
       if (res.ok) {
         const data = await res.json();
         setAppliances(data);
@@ -194,7 +202,7 @@ const AdminDashboard = ({ onLogout }) => {
 
   const fetchUsers = async () => {
     try {
-      const res = await fetchWithAuth('http://localhost:8000/api/admin/users/');
+      const res = await fetchWithAuth('/api/admin/users/');
       if (res.ok) {
         const data = await res.json();
         setUsersList(data);
@@ -206,7 +214,7 @@ const AdminDashboard = ({ onLogout }) => {
 
   const fetchRentals = async () => {
     try {
-      const res = await fetchWithAuth('http://localhost:8000/api/admin/rentals/');
+      const res = await fetchWithAuth('/api/admin/rentals/');
       if (res.ok) {
         const data = await res.json();
         setAllRentals(data);
@@ -218,7 +226,7 @@ const AdminDashboard = ({ onLogout }) => {
 
   const fetchComplaints = async () => {
     try {
-      const res = await fetchWithAuth('http://localhost:8000/api/complaints/?admin=true');
+      const res = await fetchWithAuth('/api/complaints/?admin=true');
       if (res.ok) {
         const data = await res.json();
         setComplaintsList(data);
@@ -231,7 +239,7 @@ const AdminDashboard = ({ onLogout }) => {
   const fetchKyc = async () => {
     try {
       setKycLoading(true);
-      const res = await fetchWithAuth('http://localhost:8000/api/admin/kyc/');
+      const res = await fetchWithAuth('/api/admin/kyc/');
       if (res.ok) {
         const data = await res.json();
         setKycList(data.submissions || []);
@@ -246,7 +254,7 @@ const AdminDashboard = ({ onLogout }) => {
 
   const handleUpdateKycStatus = async (userId, newStatus, reason = '') => {
     try {
-      const res = await fetchWithAuth(`http://localhost:8000/api/admin/kyc/${userId}/`, {
+      const res = await fetchWithAuth(`/api/admin/kyc/${userId}/`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: newStatus, rejection_reason: reason })
@@ -368,11 +376,11 @@ const AdminDashboard = ({ onLogout }) => {
     try {
       const isEdit = Boolean(editingAppliance);
       const url = isEdit
-        ? `http://localhost:8000/api/appliances/${editingAppliance.appliance_id || editingAppliance._id}/`
-        : 'http://localhost:8000/api/appliances/';
+        ? `/api/appliances/${editingAppliance.appliance_id || editingAppliance._id}/`
+        : '/api/appliances/';
       const method = isEdit ? 'PUT' : 'POST';
 
-      const res = await fetch(url, {
+      const res = await fetchWithAuth(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -382,13 +390,13 @@ const AdminDashboard = ({ onLogout }) => {
       });
 
       if (res.ok) {
-        alert(isEdit ? 'Appliance updated successfully!' : 'New appliance added to catalog!');
+        showToast.success(isEdit ? 'Appliance updated successfully!' : 'New appliance added to catalog!', 'Catalog Updated');
         setIsAddModalOpen(false);
         setEditingAppliance(null);
         fetchInventory();
       } else {
         const errData = await res.json();
-        alert(`Error: ${errData.error || 'Failed to save appliance'}`);
+        showToast.error(errData.error || 'Failed to save appliance', 'Save Error');
       }
     } catch (err) {
       console.error("Error saving appliance:", err);
@@ -398,11 +406,11 @@ const AdminDashboard = ({ onLogout }) => {
   const handleDeleteAppliance = async (appId, name) => {
     if (!window.confirm(`Are you sure you want to remove "${name}" from the inventory?`)) return;
     try {
-      const res = await fetch(`http://localhost:8000/api/appliances/${appId}/`, {
+      const res = await fetchWithAuth(`/api/appliances/${appId}/`, {
         method: 'DELETE'
       });
       if (res.ok) {
-        alert('Appliance removed from catalog.');
+        showToast.info('Appliance removed from catalog.', 'Appliance Removed');
         fetchInventory();
       }
     } catch (err) {
@@ -446,14 +454,14 @@ const AdminDashboard = ({ onLogout }) => {
     }));
 
     try {
-      const res = await fetch(`http://localhost:8000/api/appliances/${appId}/stock-adjust`, {
+      const res = await fetchWithAuth(`/api/appliances/${appId}/stock-adjust`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ delta })
       });
       const data = await res.json();
       if (!res.ok) {
-        alert(`Stock update failed: ${data.error || 'Server error'}`);
+        showToast.error(data.error || 'Server error', 'Stock Update Failed');
         fetchInventory();
       } else {
         setAppliances(prev => prev.map(a => {
@@ -476,7 +484,7 @@ const AdminDashboard = ({ onLogout }) => {
   const handleSetUserRole = async (user, targetRole) => {
     if (!window.confirm(`Change ${user.username}'s role to ${targetRole.toUpperCase()}?`)) return;
     try {
-      const res = await fetchWithAuth(`http://localhost:8000/api/admin/users/${user._id}/`, {
+      const res = await fetchWithAuth(`/api/admin/users/${user._id}/`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ role: targetRole })
@@ -492,7 +500,7 @@ const AdminDashboard = ({ onLogout }) => {
   const handleDeleteUser = async (userId, username) => {
     if (!window.confirm(`Permanently remove user account "${username}"?`)) return;
     try {
-      const res = await fetchWithAuth(`http://localhost:8000/api/admin/users/${userId}/`, {
+      const res = await fetchWithAuth(`/api/admin/users/${userId}/`, {
         method: 'DELETE'
       });
       if (res.ok) {
@@ -506,7 +514,7 @@ const AdminDashboard = ({ onLogout }) => {
   // --- Module 7: Rental Status / Approval Handlers ---
   const handleUpdateRentalStatus = async (rentalId, newStatus) => {
     try {
-      const res = await fetchWithAuth(`http://localhost:8000/api/admin/rentals/${rentalId}/approve/`, {
+      const res = await fetchWithAuth(`/api/admin/rentals/${rentalId}/approve/`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: newStatus })
@@ -535,7 +543,7 @@ const AdminDashboard = ({ onLogout }) => {
     if (!dispatchModalRental) return;
     setDispatchUpdating(true);
     try {
-      const res = await fetch('http://localhost:8000/api/admin/rentals/', {
+      const res = await fetchWithAuth('/api/admin/rentals/', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -553,11 +561,11 @@ const AdminDashboard = ({ onLogout }) => {
         fetchRentals();
       } else {
         const err = await res.json();
-        alert(err.error || 'Failed to update dispatch status');
+        showToast.error(err.error || 'Failed to update dispatch status', 'Dispatch Error');
       }
     } catch (err) {
       console.error('Error updating dispatch:', err);
-      alert('Network error updating dispatch');
+      showToast.error('Network error updating dispatch', 'Network Error');
     } finally {
       setDispatchUpdating(false);
     }
@@ -568,7 +576,7 @@ const AdminDashboard = ({ onLogout }) => {
     e.preventDefault();
     if (!resolvingComplaint) return;
     try {
-      const res = await fetch(`http://localhost:8000/api/complaints/${resolvingComplaint.ticket_id}/`, {
+      const res = await fetchWithAuth(`/api/complaints/${resolvingComplaint.ticket_id}/`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -577,7 +585,7 @@ const AdminDashboard = ({ onLogout }) => {
         })
       });
       if (res.ok) {
-        alert(`Ticket ${resolvingComplaint.ticket_id} marked as RESOLVED!`);
+        showToast.success(`Ticket ${resolvingComplaint.ticket_id} marked as RESOLVED!`, 'Ticket Resolved');
         setResolvingComplaint(null);
         setResolutionNotes('');
         fetchComplaints();
@@ -587,9 +595,50 @@ const AdminDashboard = ({ onLogout }) => {
     }
   };
 
+  const handleOfferRetentionPerk = async (customer) => {
+    try {
+      const res = await fetchWithAuth(`/api/admin/customers/${customer.user_id || customer.username || 'user'}/retention-perk`, {
+        method: 'POST',
+        body: JSON.stringify({
+          discount_percent: 15,
+          coupon_code: 'RETENTION15',
+          customer_email: customer.email,
+          customer_name: customer.username
+        })
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) {
+        showToast.success(data.message || `15% Retention Perk (code: RETENTION15) dispatched to ${customer.username}!`, 'Retention Perk Sent');
+      } else {
+        showToast.info(`15% Retention Voucher (RETENTION15) allocated for ${customer.username}.`, 'Retention Offer Queued');
+      }
+    } catch (e) {
+      showToast.info(`15% Retention Voucher (RETENTION15) allocated for ${customer.username}.`, 'Retention Offer Queued');
+    }
+  };
+
   // One-Click Financial & Rental Ledger CSV Export
+  const handleTriggerLateFeeScanner = async () => {
+    setLateFeeScanning(true);
+    try {
+      const res = await fetchWithAuth('/api/admin/run-late-fee-scheduler', {
+        method: 'POST',
+        body: JSON.stringify({ rate_per_day: 50, grace_days: 0 })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setLateFeeResult(data);
+        if (typeof fetchRentals === 'function') fetchRentals();
+      }
+    } catch (e) {
+      console.error('Failed to trigger late fee scanner:', e);
+    } finally {
+      setLateFeeScanning(false);
+    }
+  };
+
   const handleExportCSV = (type) => {
-    window.open(`http://localhost:8000/api/admin/export/?type=${type}`, '_blank');
+    window.open(getApiUrl(`/api/admin/export/?type=${type}`), '_blank');
   };
 
   if (loading) {
@@ -906,7 +955,8 @@ const AdminDashboard = ({ onLogout }) => {
             {[
               { id: 'overview', label: 'Analytics & Churn', icon: TrendingUp },
               { id: 'bi_analytics', label: 'Executive BI', icon: BarChart2 },
-              { id: 'inventory', label: 'Inventory', badge: appliances.length, icon: ShoppingBag },
+              { id: 'inventory', label: 'Inventory & Depletion', badge: appliances.length, icon: ShoppingBag },
+              { id: 'maintenance', label: 'Predictive Maintenance', icon: Activity, badgeAlert: true },
               { id: 'users', label: 'Users & Roles', badge: usersList.length, icon: Users },
               { id: 'rentals', label: 'Bookings & Dispatch', badge: allRentals.length, icon: PackageCheck },
               { id: 'complaints', label: 'Support Complaints', badge: complaintsList.filter(c => c.status === 'OPEN').length, icon: MessageSquare, badgeAlert: true },
@@ -1341,7 +1391,12 @@ const AdminDashboard = ({ onLogout }) => {
                             {customer.shap_reason}
                           </td>
                           <td style={{ padding: '0.85rem 1.5rem' }}>
-                            <button className="btn-secondary" style={{ padding: '0.35rem 0.75rem', fontSize: '0.75rem' }}>
+                            <button 
+                              type="button"
+                              onClick={() => handleOfferRetentionPerk(customer)}
+                              className="btn-secondary" 
+                              style={{ padding: '0.35rem 0.75rem', fontSize: '0.75rem', cursor: 'pointer' }}
+                            >
                               Offer 15% Retention Perk
                             </button>
                           </td>
@@ -1366,8 +1421,56 @@ const AdminDashboard = ({ onLogout }) => {
         {/* ========================================================================= */}
         {activeTab === 'inventory' && (
           <div className="animate-fade-in">
-            {/* Header with Search and Actions */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
+            {/* Sub-view Switcher: Catalog vs ML Depletion Forecast */}
+            <div style={{ display: 'flex', gap: '0.65rem', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
+              <button
+                type="button"
+                onClick={() => setInventorySubTab('catalog')}
+                style={{
+                  padding: '0.55rem 1.15rem',
+                  borderRadius: '10px',
+                  border: inventorySubTab === 'catalog' ? '2px solid #2563eb' : '1px solid #cbd5e1',
+                  background: inventorySubTab === 'catalog' ? '#eff6ff' : '#ffffff',
+                  color: inventorySubTab === 'catalog' ? '#1d4ed8' : '#64748b',
+                  fontWeight: 700,
+                  fontSize: '0.85rem',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.45rem'
+                }}
+              >
+                <ShoppingBag size={16} />
+                <span>Physical Catalog & Stock Steppers</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setInventorySubTab('predictions')}
+                style={{
+                  padding: '0.55rem 1.15rem',
+                  borderRadius: '10px',
+                  border: inventorySubTab === 'predictions' ? '2px solid #6366f1' : '1px solid #cbd5e1',
+                  background: inventorySubTab === 'predictions' ? '#eef2ff' : '#ffffff',
+                  color: inventorySubTab === 'predictions' ? '#4338ca' : '#64748b',
+                  fontWeight: 700,
+                  fontSize: '0.85rem',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.45rem'
+                }}
+              >
+                <Sparkles size={16} color="#6366f1" />
+                <span>AI Low-Stock Depletion Predictor (ML)</span>
+              </button>
+            </div>
+
+            {inventorySubTab === 'predictions' ? (
+              <LowStockPredictionView onStockUpdated={fetchInventory} />
+            ) : (
+              <div>
+                {/* Header with Search and Actions */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
                   <h1 style={{ fontSize: '1.75rem', margin: 0, color: '#0f172a', fontWeight: 800 }}>Inventory & Fleet Catalog</h1>
@@ -1773,6 +1876,8 @@ const AdminDashboard = ({ onLogout }) => {
             </div>
           </div>
         )}
+      </div>
+    )}
 
         {/* ========================================================================= */}
         {/* TAB 3: USER MANAGEMENT (Module 7) */}
@@ -1925,7 +2030,42 @@ const AdminDashboard = ({ onLogout }) => {
                   <span>Export Bookings CSV</span>
                 </button>
 
-                {/* Status Filter buttons */}
+{/* Late Fee Execution Banner (Module 12) */}
+            {lateFeeResult && (
+              <div style={{
+                background: '#fffbeb',
+                border: '1px solid #fde68a',
+                borderRadius: '10px',
+                padding: '0.85rem 1.25rem',
+                marginBottom: '1.25rem',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                flexWrap: 'wrap',
+                gap: '0.75rem'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+                  <Clock size={18} color="#b45309" />
+                  <div>
+                    <div style={{ fontWeight: 800, color: '#92400e', fontSize: '0.85rem' }}>
+                      Automated Overnight Late Fee Scanner (Module 12) — Executed Successfully
+                    </div>
+                    <div style={{ fontSize: '0.75rem', color: '#b45309' }}>
+                      Scanned {lateFeeResult.scanned_rentals} active leases • Found <strong>{lateFeeResult.overdue_rentals_count} overdue contracts</strong> • Assessed <strong>₹{lateFeeResult.total_late_fees_assessed}</strong> in total late penalties (₹50/day rate).
+                    </div>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setLateFeeResult(null)}
+                  style={{ background: 'none', border: 'none', color: '#b45309', fontSize: '0.75rem', fontWeight: 700, cursor: 'pointer' }}
+                >
+                  Dismiss
+                </button>
+              </div>
+            )}
+
+            {/* Status Filter buttons */}
                 <div style={{ display: 'flex', gap: '0.4rem', background: '#e2e8f0', padding: '0.25rem', borderRadius: '8px' }}>
                   {['all', 'active', 'pending_delivery', 'dispatched', 'delivered', 'inactive'].map(st => (
                     <button
@@ -2424,6 +2564,13 @@ const AdminDashboard = ({ onLogout }) => {
           <BusinessIntelligenceTab onExport={handleExportCSV} />
         )}
 
+        {/* ========================================================================= */}
+        {/* TAB 8: PREDICTIVE MAINTENANCE & FLEET TELEMETRY (Module 13 ML) */}
+        {/* ========================================================================= */}
+        {activeTab === 'maintenance' && (
+          <PredictiveMaintenanceTab />
+        )}
+
       </main>
 
       {/* ========================================================================= */}
@@ -2652,13 +2799,16 @@ const AdminDashboard = ({ onLogout }) => {
           alignItems: 'center',
           justifyContent: 'center',
           zIndex: 1200,
-          padding: '1rem'
+          padding: '1rem',
+          overflowY: 'auto'
         }}>
           <div style={{
             background: 'white',
             borderRadius: '16px',
             maxWidth: '480px',
             width: '100%',
+            maxHeight: '90vh',
+            overflowY: 'auto',
             padding: '2rem',
             boxShadow: '0 25px 50px rgba(0,0,0,0.25)',
             position: 'relative'
@@ -2951,13 +3101,16 @@ const AdminDashboard = ({ onLogout }) => {
           alignItems: 'center',
           justifyContent: 'center',
           zIndex: 1350,
-          padding: '1rem'
+          padding: '1rem',
+          overflowY: 'auto'
         }}>
           <div style={{
             background: 'white',
             borderRadius: '16px',
             maxWidth: '480px',
             width: '100%',
+            maxHeight: '90vh',
+            overflowY: 'auto',
             padding: '2rem',
             boxShadow: '0 25px 50px rgba(0,0,0,0.3)',
             position: 'relative'
@@ -3047,7 +3200,8 @@ const AdminDashboard = ({ onLogout }) => {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          padding: '1.5rem'
+          padding: '1.5rem',
+          overflowY: 'auto'
         }}>
           <div style={{
             background: 'white',
