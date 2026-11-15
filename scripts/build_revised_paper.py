@@ -43,7 +43,7 @@ def build_manuscript(output_docx_path):
 
     doc = Document()
 
-    # Page setup: Standard Letter, 0.75 in margins
+    # Standard IEEE page setup: Letter, 0.75 in margins
     for section in doc.sections:
         section.top_margin = Inches(0.75)
         section.bottom_margin = Inches(0.75)
@@ -129,20 +129,18 @@ def build_manuscript(output_docx_path):
     r_abs_lbl.font.italic = True
 
     r_abs_text = p_abs.add_run(
-        "Online household appliance leasing systems represent an essential Product-Service System (PSS) within the circular economy, "
-        "lowering upfront consumer capital barriers while maximizing manufactured durable asset utilization. However, successful operationalization "
-        "requires resolving two pervasive operational challenges: helping customers discover contextually appropriate appliances without exhaustive catalog browsing, "
-        "and proactively detecting early subscriber attrition before contractual lease termination. This paper presents Rentora, an end-to-end multi-tier appliance rental "
-        "platform integrating personalized discovery and explainable churn-risk intelligence into transactional workflows. The software architecture comprises a React 19 "
-        "single-page application, an Express.js API gateway with role-based access control (RBAC), a concurrent MongoDB data store with atomic stock reservations, and a "
-        "decoupled Python machine learning batch tier. Catalog recommendations are synthesized via term frequency–inverse document frequency (TF-IDF) text representations "
-        "with cosine similarity, augmented by co-rental affinity mining, Bayesian rating shrinkage (prior C=4.30, m=12), eco-tier energy incentives, and Gaussian price-budget alignment. "
-        "Customer churn risk is evaluated using genuine LightGBM gradient boosting benchmarked against a Random Forest baseline, explained locally and globally via TreeSHAP. "
-        "To evaluate pipeline scalability and latency, the machine learning workflow is benchmarked on an engineered proxy corpus of 10,000 records derived deterministically from public "
-        "customer banking churn data. In held-out test split evaluations (N=2,000), LightGBM achieves an ROC-AUC of 0.833 and an F1-score of 0.590 (Recall: 0.496, Precision: 0.727), "
-        "demonstrating narrow superiority over Random Forest (ROC-AUC: 0.819, F1: 0.532). Five-fold stratified cross-validation confirms consistent performance (0.833 ± 0.012 vs. 0.824 ± 0.011). "
-        "Recommender catalog evaluation on 164 appliances confirms strong intra-catalog sub-category coherence (P@5 = 0.593 vs. 0.042 random baseline, 96.3% coverage). "
-        "All reported empirical outputs are fully reproducible via the repository's open benchmark suite, demonstrating the engineering viability of decoupled intelligence in circular durable-goods leasing."
+        "Renting household appliances has become a practical choice for college students, young professionals, and relocating families who want to avoid large upfront expenses. "
+        "From an environmental standpoint, appliance rental also supports circular economy goals by keeping machines serviced and in use across multiple households. "
+        "However, running an appliance rental service comes with two real operational headaches: helping users quickly discover items that match their room layout and budget without endless scrolling, "
+        "and spotting when existing renters are about to cancel their subscriptions so customer support can step in. "
+        "In this paper, we present Rentora, an end-to-end web platform developed at Keshav Memorial Institute of Technology (KMIT) that integrates recommendation and churn-risk prediction directly into everyday rental operations. "
+        "We built the platform using React 19 on Vite, a Node.js Express API with role-based access control, a MongoDB database with atomic stock updates, and a background Python machine learning pipeline. "
+        "Our recommendation service ranks catalog items using sublinear TF-IDF text similarity with room-category boosting, co-rental patterns, Bayesian-smoothed user ratings (prior C=4.30, m=12), energy-efficiency bonuses, and budget fit. "
+        "For churn prediction, we trained a LightGBM gradient-boosted tree model alongside a Random Forest baseline on an engineered dataset of 10,000 customer records mapped from the public Bank Customer Churn benchmark. "
+        "On our 2,000-customer held-out test split, LightGBM achieved an ROC-AUC of 0.833 and an F1-score of 0.590 (catching 49.6% of churners with 72.7% precision), outperforming Random Forest (ROC-AUC 0.819, F1 0.532). "
+        "Stratified 5-fold cross-validation confirmed consistent results (0.833 ± 0.012 vs. 0.824 ± 0.011). We also used TreeSHAP to give support agents clear, log-odds feature explanations for each customer's risk score. "
+        "Evaluating our recommender on our 164-item appliance catalog showed 59.3% precision at top-5 for specific sub-categories compared to 4.2% random chance (a 14.1× improvement), with 96.3% catalog coverage. "
+        "All code, seed datasets, and reproducibility scripts are available in our open repository."
     )
     r_abs_text.font.name = "Times New Roman"
     r_abs_text.font.size = Pt(9)
@@ -155,7 +153,7 @@ def build_manuscript(output_docx_path):
     r_idx_lbl.font.size = Pt(9)
     r_idx_lbl.font.bold = True
     r_idx_lbl.font.italic = True
-    r_idx_txt = p_idx.add_run("household appliance rental, recommender systems, term frequency–inverse document frequency, cosine similarity, LightGBM, Random Forest, Shapley values, customer churn prediction, product-service systems.")
+    r_idx_txt = p_idx.add_run("appliance rental, recommender systems, TF-IDF cosine similarity, LightGBM, Random Forest, TreeSHAP, customer churn prediction, full-stack web architecture.")
     r_idx_txt.font.name = "Times New Roman"
     r_idx_txt.font.size = Pt(9)
     r_idx_txt.font.italic = True
@@ -212,40 +210,37 @@ def build_manuscript(output_docx_path):
     # ─────────────────────────────────────────────────────────────────────────
     add_sec_heading("I. INTRODUCTION")
     add_body_p(
-        "Household appliances such as refrigerators, washing machines, and air conditioners constitute non-discretionary consumer necessities. "
-        "However, direct outright acquisition imposes heavy upfront capital expenditures (CAPEX) on consumers. For university students, transient working "
-        "professionals, and modern urban households, equipment rental provides a flexible, affordable alternative that shifts consumption from linear asset "
-        "ownership to access-based utilization. Beyond consumer flexibility, appliance leasing serves as a vital operationalization of Product-Service Systems (PSS) "
-        "within the circular economy: a single durable unit is maintained, serviced, refurbished, and re-circulated across successive tenancies throughout its useful "
-        "life, dramatically mitigating embedded carbon emissions and e-waste generation [1], [2]."
+        "Buying major home appliances like refrigerators, washing machines, and air conditioners requires a lot of money upfront. "
+        "For university students, working professionals moving between cities, and newly formed households, buying appliances outright rarely makes sense. "
+        "Renting offers a practical alternative: customers get the appliances they need on flexible monthly leases without taking on debt or worrying about moving heavy machines later. "
+        "Renting also fits well into the circular economy. Instead of sitting idle or being dumped in landfills when someone moves, a well-built appliance can be collected, serviced, "
+        "cleaned, and re-rented to someone else, extending its working life and reducing manufacturing waste [1], [2]."
     )
     add_body_p(
-        "While conventional digital rental platforms succeed in centralizing catalog browsing, reservation scheduling, and payment capture, operational experience reveals "
-        "two critical vulnerabilities inherent to durable goods leasing. First, catalogue discovery is hindered by decision fatigue: durable appliances possess intricate technical "
-        "specifications (energy star ratings, volumetric capacity, dimensions, motor inverter types) and spatial room complementarities that standard keyword filters fail to resolve. "
-        "Second, rental enterprises depend upon continuous monthly recurring revenue (MRR) to amortize high upfront capital investments in asset procurement, technician delivery, "
-        "pre-dispatch quality audits, and reverse logistics. When a subscriber churns prematurely, unamortized operational expenditures cannot be recovered."
+        "While basic rental websites let customers browse products and pay online, operating an appliance rental business in the real world reveals two big bottlenecks. "
+        "First, catalog discovery is harder than on ordinary e-commerce sites. Appliances have specific room pairings (a fridge naturally pairs with a water purifier or microwave, not another fridge), "
+        "power ratings, and monthly rent brackets that regular search bars do not handle well. Second, rental businesses make their revenue through recurring monthly subscriptions, but they spend "
+        "heavy capital upfront on buying inventory, running warehouse inspections, and paying delivery technicians. When a customer cancels their subscription early—what the industry calls churn—the business "
+        "loses future rental income and cannot recover those upfront onboarding and logistics costs."
     )
     add_body_p(
-        "Understanding Customer Churn in Durable Goods Leasing: In subscription-based durable leasing, customer churn is formally defined as the contractual termination "
-        "of the leasing agreement, wherein a customer cancels active subscriptions, schedules machine repossession, and ceases recurring subscription payments without renewal. "
-        "Because customer acquisition costs (CAC) in durable leasing exceed those of standard e-commerce by a factor of 3× to 5× due to physical logistics and technician labor, proactive "
-        "attrition mitigation is essential for enterprise survival. An analytical churn-prediction engine continuously monitors customer behavioral telemetry (tenure duration, payment delinquency, "
-        "cart dormancy, support feedback) to calculate default probability, enabling retention teams to intervene with preventive maintenance, lease restructuring, or tenure discounts before the lease lapses."
+        "What Churn Means in Appliance Rentals: In simple terms, a customer churns when they stop renting from the platform: they cancel their active order, schedule an item pickup, "
+        "and stop paying monthly fees. Because sending a delivery team to pick up a washer and finding a replacement renter is expensive, rental companies need early warning signs. "
+        "By tracking signals like how long an account has been active, whether payments are on time, how many days since the user last logged in, and how they rate customer support, "
+        "a machine learning model can estimate churn risk before the lease is actually cancelled. This allows staff to reach out with helpful offers, such as a rent discount or free maintenance visit, to keep the account active."
     )
     add_body_p(
-        "Foundational Architecture and Paper Contributions: The baseline framework for this investigation, 'Just Rent It' [3], established the fundamental digital workflows "
-        "required for appliance leasing: catalog presentation, order placement, digital payments, and user authentication. However, it treated analytical intelligence, identity security, "
-        "and data-driven retention as external future work. The Rentora platform extends this architectural baseline in two core dimensions (Table I):"
+        "Background and What Rentora Adds: We started with the foundational rental platform concept introduced in the 'Just Rent It' project [3], which handled the basics of online appliance rentals: "
+        "viewing products, placing booking requests, making payments, tracking orders, and managing user accounts. While that provided a solid baseline, it left out data-driven recommendation, automated customer retention, "
+        "and identity checks. In Rentora, we expanded that foundation in two clear steps (Table I):"
     )
     add_body_p(
-        "1. Full-Stack Operational Hardening: Rentora introduces granular Role-Based Access Control (RBAC) across three distinct actors (renters, peer asset owners, platform administrators), "
-        "in-browser optical character recognition (OCR) via WebAssembly Tesseract.js for private client-side identity verification, an escrow-style security deposit ledger with an optional damage waiver, "
-        "and full-duplex WebSocket delivery tracking via Socket.io."
+        "1. Platform Engineering: We built a multi-role web platform with separate portals for renters, appliance owners, and administrators; added client-side optical character recognition (OCR) via Tesseract.js "
+        "to check identity documents right inside the browser; set up a software escrow ledger with an optional damage waiver; and added live order tracking using WebSockets via Socket.io."
     )
     add_body_p(
-        "2. Integrated Analytical Intelligence Tier: It deploys a decoupled Python machine learning pipeline that pairs an explainable hybrid catalog recommender with a LightGBM customer churn "
-        "prediction engine equipped with TreeSHAP game-theoretic feature explanations."
+        "2. Machine Learning Pipeline: We built an asynchronous Python pipeline that runs separately from the main web server. It handles hybrid catalog recommendations and trains a LightGBM classifier with TreeSHAP explanations "
+        "to flag at-risk subscribers without slowing down checkout or payments."
     )
 
     # TABLE I
@@ -253,21 +248,21 @@ def build_manuscript(output_docx_path):
     p_t1_lbl.alignment = WD_ALIGN_PARAGRAPH.CENTER
     p_t1_lbl.paragraph_format.space_before = Pt(6)
     p_t1_lbl.paragraph_format.space_after = Pt(2)
-    r = p_t1_lbl.add_run("TABLE I\nFROM THE BASE FRAMEWORK TO RENTORA")
+    r = p_t1_lbl.add_run("TABLE I\nFEATURE COMPARISON: BASE FRAMEWORK VERSUS RENTORA")
     r.font.name = "Times New Roman"
     r.font.size = Pt(8.5)
     r.font.bold = True
 
     t1_data = [
-        ["Functional Dimension", "Base Framework [3]", "Rentora (This Work)", "Implementation Status"],
-        ["System Architecture", "Client-server web API", "React 19 SPA, Express API, MongoDB, decoupled Python ML", "Fully Implemented"],
-        ["Authentication & Access", "Basic user sessions", "JWT login, RBAC route guards across 3 distinct roles", "Fully Implemented"],
-        ["Identity Verification (KYC)", "Manual physical submission", "Client-side Tesseract.js WebAssembly OCR document extraction", "Implemented (Simulated Backend)"],
-        ["Payments & Deposit Reserve", "Direct transaction capture", "Razorpay test mode; software escrow reserve ledger & damage waiver", "Implemented (Sandbox Simulation)"],
-        ["Inventory & Order Concurrency", "Static inventory table", "Multi-city catalog with atomic decrement ($inc) and restitution", "Fully Implemented"],
-        ["Delivery Tracking", "Periodic status polling", "Full-duplex WebSocket event streaming via Socket.io", "Fully Implemented"],
-        ["Catalog Discovery", "Static tabular browsing", "Hybrid recommender: TF-IDF, co-rental, ratings, energy, budget", "Fully Implemented"],
-        ["Customer Retention", "Not addressed", "LightGBM churn classification with TreeSHAP feature attributions", "Fully Implemented"]
+        ["Feature Area", "Base Framework [3]", "Rentora (Our Implementation)", "Status in Repo"],
+        ["Web Architecture", "Standard client-server REST API", "React 19 SPA, Express gateway, MongoDB, decoupled Python ML", "Fully Built"],
+        ["User Accounts & Roles", "Basic username/password sessions", "JWT authentication with RBAC across customer, owner, and admin roles", "Fully Built"],
+        ["Identity Verification (KYC)", "Manual document submission", "Client-side Tesseract.js OCR reading Aadhaar text directly in browser", "Built (Simulated backend)"],
+        ["Payments & Deposits", "Direct digital payment capture", "Razorpay test mode; software escrow reserve ledger & optional damage waiver", "Built (Sandbox mode)"],
+        ["Stock & Concurrency", "Static product count", "Multi-city inventory with atomic decrement ($inc) and restitution on cancel", "Fully Built"],
+        ["Delivery Tracking", "Status checked on page reload", "Live full-duplex WebSocket event updates via Socket.io", "Fully Built"],
+        ["Catalog Suggestions", "Static catalog list; no AI", "Hybrid recommender using TF-IDF, co-rental, ratings, energy, and budget", "Fully Built"],
+        ["Customer Retention", "Not included", "LightGBM churn prediction with TreeSHAP feature explanations", "Fully Built"]
     ]
 
     t1 = doc.add_table(rows=len(t1_data), cols=4)
@@ -303,44 +298,37 @@ def build_manuscript(output_docx_path):
     # II. LITERATURE SURVEY
     # ─────────────────────────────────────────────────────────────────────────
     add_sec_heading("II. LITERATURE SURVEY")
-    add_subsec_heading("A. Circular Economy and Consumer Product-Service Systems")
+    add_subsec_heading("A. Product-Service Systems and Appliance Rental")
     add_body_p(
-        "Consumer durables represent significant reservoirs of embodied carbon and refined raw materials. Koide et al. [1] conducted an extensive meta-analysis "
-        "spanning over 100 empirical PSS implementations, establishing that while servitization and shared access yield substantial lifecycle emission reductions, "
-        "their environmental effectiveness depends critically upon service design, reverse logistics efficiency, and maintenance durability. Sigüenza et al. [2] examined "
-        "circular leasing frameworks for household washing machines in European markets, demonstrating that closed-loop leasing reduces aggregate material depletion by up to 34% "
-        "compared to linear ownership models, provided robust tracking and refurbishment infrastructure prevents premature machine obsolescence."
+        "Appliance rental is a real-world example of Product-Service Systems (PSS). In a comprehensive review of over 100 PSS studies, Koide et al. [1] showed that sharing and leasing "
+        "consumer durables can substantially lower life-cycle carbon emissions compared to traditional linear buying and discarding. But they also noted that these environmental gains depend on good logistics "
+        "and maintenance; if machines break early or get discarded after one user, the benefits disappear. Looking specifically at washing machine leasing in Europe, Sigüenza et al. [2] found that circular rental models "
+        "cut raw material consumption by up to 34%, provided the business has reliable tracking, regular refurbishing, and active customer management."
     )
-    add_subsec_heading("B. Digital Rental Platform Architectures")
+    add_subsec_heading("B. Earlier Rental Platform Studies")
     add_body_p(
-        "The digitization of leasing operations has historically adapted conventional e-commerce patterns. Foundational baseline architectures, including 'Just Rent It' [3], "
-        "formalized the mapping of equipment rental lifecycles into client-server REST interfaces handling inventory cataloging, scheduling, and digital transaction verification. "
-        "However, these architectures treat analytical intelligence as external post-hoc reporting rather than core operational components, creating a systemic gap between transaction processing "
-        "and proactive customer retention."
+        "Digital platforms for rental services have grown steadily. Earlier papers, such as the digital appliance rental framework described in 'Just Rent It' [3], showed how client-server web apps "
+        "can replace paper-based rental bookings with digital catalogs, online payments, and order tracking. However, those earlier systems focused strictly on transaction processing and left data-driven features—like "
+        "recommendation engines and customer retention models—for unspecified future work."
     )
-    add_subsec_heading("C. Recommender Systems in Equipment Leasing")
+    add_subsec_heading("C. Recommendation in Rental Contexts")
     add_body_p(
-        "Recommender architectures in e-commerce predominantly rely on collaborative filtering (CF) and matrix factorization [10]. Satapathy et al. [4] applied collaborative filtering "
-        "with cosine similarity to rental property portals. However, applying pure CF algorithms to durable appliance rental exposes severe structural limitations. "
-        "Unlike movie streaming or grocery shopping where interaction density is high, appliance leasing is characterized by extreme interaction sparsity: an individual household leases "
-        "only 1 to 4 appliances across multi-year intervals. Consequently, the user-item interaction matrix lacks sufficient density to train latent factor models reliably. "
-        "In sparse leasing contexts, content-based vector space models [11] and item-to-item co-occurrence heuristics [14] provide vital baseline stability, especially when combined with "
-        "explicit domain knowledge such as room synergy and energy efficiency ratings."
+        "Most e-commerce recommenders rely on collaborative filtering (CF) and matrix factorization [10]. Satapathy et al. [4] used collaborative filtering with cosine similarity for a rental property portal. "
+        "However, applying standard collaborative filtering to appliance rentals hits an immediate wall: data sparsity. While e-commerce shoppers buy dozens of books or clothes, an appliance renter typically leases only 1 to 4 "
+        "items over several years. With so few interactions per user, user-item rating matrices are nearly empty. In this sparse setting, content-based matching using text descriptions [11] and item co-occurrence rules [14] "
+        "offer much more dependable recommendations, especially when augmented with domain heuristics like room pairing and power ratings."
     )
-    add_subsec_heading("D. Machine Learning for Churn Prediction")
+    add_subsec_heading("D. Churn Prediction in Subscription Businesses")
     add_body_p(
-        "In subscription service environments, customer attrition has been analyzed across telecommunications, banking, and SaaS. In the home appliance leasing sector specifically, "
-        "Suh [5] evaluated multiple machine learning classifiers on Korean appliance rental operational records, demonstrating that tree-based gradient boosting architectures significantly "
-        "outperformed classical Random Forest [7], logistic regression, and shallow neural networks in identifying churners from contract duration, service call frequency, and payment records. "
-        "LightGBM [6] represents a state-of-the-art gradient boosting implementation, utilizing gradient-based one-side sampling (GOSS) and exclusive feature bundling (EFB) to achieve high "
-        "computational efficiency on tabular data."
+        "Customer churn has been widely studied in banking and telecom. In home appliance rental specifically, Suh [5] tested several machine learning models on rental contract histories in South Korea, "
+        "finding that gradient-boosted decision trees outperformed Random Forests [7], logistic regression, and neural networks when analyzing contract terms, service visits, and payment records. "
+        "LightGBM [6] has become a popular gradient-boosting tool because it uses histogram binning and leaf-wise splitting to train fast on tabular data with low memory usage."
     )
-    add_subsec_heading("E. Operational Explainable AI (XAI)")
+    add_subsec_heading("E. Making Predictions Understandable with TreeSHAP")
     add_body_p(
-        "Predictive accuracy alone is insufficient for enterprise deployment. Operational personnel (customer support representatives and retention agents) require actionable explanations "
-        "to justify customer interventions. SHapley Additive exPlanations (SHAP) [8], grounded in cooperative game theory [12], guarantees fair marginal feature attribution across coalitions. "
-        "Lundberg et al. [9] developed TreeSHAP, an exact algorithm that computes Shapley values for tree ensembles in polynomial time O(TLD^2) rather than exponential time O(TL2^F). "
-        "This makes real-time, staff-facing risk factor attribution operationally tractable."
+        "In customer support, giving staff a raw risk percentage like '78% churn risk' is not enough; staff need to know why. Shapley Additive exPlanations (SHAP) [8], based on cooperative game theory [12], "
+        "calculates the exact marginal contribution of each feature to a specific prediction. Lundberg et al. [9] introduced TreeSHAP, an exact algorithm that computes Shapley values for tree ensembles in polynomial time "
+        "O(TLD^2) instead of exponential time. This makes it practical to show support staff plain-language explanations of what is driving a customer's churn risk directly in the dashboard."
     )
 
     # ─────────────────────────────────────────────────────────────────────────
@@ -348,8 +336,8 @@ def build_manuscript(output_docx_path):
     # ─────────────────────────────────────────────────────────────────────────
     add_sec_heading("III. RESEARCH GAP & CONTRIBUTIONS")
     add_body_p(
-        "A rigorous synthesis of existing literature exposes a pronounced dichotomy: operational platforms provide transactional workflows without machine learning, "
-        "while academic machine learning studies analyze isolated datasets without deploying functional operational systems. Table II summarizes this capability matrix."
+        "Looking across existing work shows a clear divide: commercial web platforms handle rental transactions but lack analytical intelligence, while academic research papers analyze machine learning algorithms "
+        "on isolated CSV files without building a working software system. Table II compares what earlier studies provided against what we implemented in Rentora."
     )
 
     # TABLE II
@@ -357,19 +345,19 @@ def build_manuscript(output_docx_path):
     p_t2_lbl.alignment = WD_ALIGN_PARAGRAPH.CENTER
     p_t2_lbl.paragraph_format.space_before = Pt(6)
     p_t2_lbl.paragraph_format.space_after = Pt(2)
-    r = p_t2_lbl.add_run("TABLE II\nCAPABILITY MATRIX: EARLIER STUDIES VERSUS RENTORA")
+    r = p_t2_lbl.add_run("TABLE II\nWHAT EACH EARLIER STUDY OFFERS COMPARED TO RENTORA")
     r.font.name = "Times New Roman"
     r.font.size = Pt(8.5)
     r.font.bold = True
 
     t2_data = [
-        ["System Capability", "Base Platform [3]", "Recommender Study [4]", "Churn Study [5]", "Rentora (This Work)"],
-        ["Transactional Booking & Payment", "Yes", "Partial", "No", "Yes"],
-        ["Personalized Discovery Recommender", "No", "Yes", "No", "Yes"],
-        ["Machine Learning Churn Prediction", "No", "No", "Yes", "Yes"],
-        ["Local Feature Explainability (XAI)", "No", "Partial", "Partial", "Yes"],
-        ["Cold-Start Catalog Handling", "No", "Partial", "No", "Yes"],
-        ["Integrated Decoupled Architecture", "No", "No", "No", "Yes"]
+        ["Platform Capability", "Base Platform [3]", "Recommender Study [4]", "Churn Study [5]", "Rentora (Our Work)"],
+        ["Online Booking and Checkout", "Yes", "Partial", "No", "Yes"],
+        ["Personalized Recommender", "No", "Yes", "No", "Yes"],
+        ["Machine Learning Churn Scoring", "No", "No", "Yes", "Yes"],
+        ["Feature-Level Explainability (XAI)", "No", "Partial", "Partial", "Yes"],
+        ["New User / Item Cold-Start", "No", "Partial", "No", "Yes"],
+        ["All Integrated in One System", "No", "No", "No", "Yes"]
     ]
 
     t2 = doc.add_table(rows=len(t2_data), cols=5)
@@ -411,9 +399,9 @@ def build_manuscript(output_docx_path):
     # ─────────────────────────────────────────────────────────────────────────
     add_sec_heading("IV. THE RENTORA SYSTEM ARCHITECTURE")
     add_body_p(
-        "Rentora is engineered as an enterprise multi-tier architecture incorporating a presentation tier, an API gateway, a transactional database tier, "
-        "and an asynchronous machine learning batch intelligence pipeline (Fig. 1). Decoupling analytical computation from transactional routing guarantees "
-        "that intensive machine learning retraining, scoring, or transient script failures cannot degrade storefront availability or block booking workflows."
+        "We designed Rentora as a four-part system: a client single-page app, an API gateway, a transactional database, and a decoupled Python machine learning pipeline (Fig. 1). "
+        "Separating the machine learning pipeline from the web server was a deliberate architectural choice: model training, batch scoring, or unexpected Python errors never slow down "
+        "customer browsing, cart checkout, or payment capture."
     )
 
     # Fig 1 Image
@@ -422,41 +410,44 @@ def build_manuscript(output_docx_path):
     img1_path = os.path.join(baseline_fig_dir, "image1.png")
     if os.path.exists(img1_path):
         p_img1.add_run().add_picture(img1_path, width=Inches(3.8))
-        add_fig_caption(1, "Rentora multi-tier architecture. The Python ML batch pipeline operates asynchronously against MongoDB, ensuring model execution never impedes core transactional workflows.")
+        add_fig_caption(1, "Rentora system architecture. The background Python ML pipeline reads operational data from MongoDB and writes scores back, so model execution never interrupts bookings.")
 
     add_body_p(
-        "Presentation Tier: The client application is implemented using React 19 bundled with Vite and styled via Tailwind CSS. The user interface exposes three specialized portals: "
-        "(1) Customer Portal for catalog browsing, tenure-tiered cart configuration, KYC document upload, and order management; (2) Peer Owner Portal for listing durable assets, monitoring "
-        "payout disbursements, and inspecting item condition reports; and (3) Administrator Portal for platform governance, KYC approvals, inventory adjustments, and churn-risk monitoring. "
-        "Client-side identity verification is powered by Tesseract.js WebAssembly: identity documents (Aadhaar cards) are preprocessed via HTML5 canvas grayscale equalization, extracting 12-digit "
-        "numerals locally in the browser and validating them against the UIDAI Verhoeff polynomial checksum before payload transmission, ensuring zero server-side image leakage."
+        "Client Presentation Tier: We built the frontend with React 19, Vite, and Tailwind CSS. The app provides three dedicated interfaces: (1) a Customer Portal where users browse items, "
+        "select lease terms (3, 6, or 12 months with automatic tenure discounts), complete KYC document verification, and manage active rentals; (2) an Owner Portal where peer hosts list appliances, "
+        "view inspection reports, and track monthly payouts; and (3) an Admin Portal where operations staff manage KYC approvals, inventory counts, and customer churn-risk alerts. "
+        "For identity verification, we implemented client-side OCR using Tesseract.js in WebAssembly. When a user uploads an identity document (such as an Aadhaar card), an HTML5 canvas pre-processes "
+        "the image (converting to grayscale and normalizing contrast) and extracts the 12-digit number locally in the user's browser. The number is validated against the UIDAI Verhoeff checksum algorithm before submission, "
+        "preventing raw identity images from ever leaking to external servers."
     )
     add_body_p(
-        "API Gateway Tier: The gateway is built on Node.js and Express, exposing 15 decoupled REST controllers. Route access is guarded by stateless JSON Web Tokens (JWT) containing cryptographic "
-        "role claims, enforced through hierarchical middleware guards. Full-duplex WebSocket connections via Socket.io broadcast order lifecycle milestones and real-time dispatch progress. "
-        "A deterministic policy concierge chatbot answers customer inquiries regarding tenure discounts, damage protection, and buyouts from static JSON knowledge trees."
+        "API Gateway Tier: The backend runs on Node.js and Express, organized into 15 route modules (including auth, appliances, rentals, cart, payments, kyc, recommendations, and admin). "
+        "Routes are protected by JSON Web Tokens (JWT) and role-based access control (RBAC) middleware: for instance, administrative routes reject tokens belonging to standard customers. "
+        "We also integrated Socket.io for live delivery tracking, allowing renters to see real-time status updates as technicians dispatch and deliver appliances. A rule-based concierge chatbot answers "
+        "common customer questions about security deposits, damage waivers, and relocation policies using fixed JSON lookup tables without calling external LLM APIs."
     )
     add_body_p(
-        "Transactional Data Tier: MongoDB acts as the transactional system of record. High-concurrency inventory decrement during checkout is handled via atomic conditional updates "
-        "($inc: { stock: -qty }, stock >= qty), with automated stock restitution upon payment cancellation, eliminating double-booking hazards. Financial deposit friction is mitigated through "
-        "a software-managed escrow deposit ledger and an optional Rentora Care damage protection waiver (₹149/mo) capping tenant liability at ₹10,000 for incidental wear and tear."
+        "Database Tier: MongoDB serves as our primary datastore. When a customer checks out, the backend updates stock counts using an atomic conditional update ($inc: { stock: -qty }, stock >= qty); "
+        "if an order fails or is cancelled, stock is restored automatically, preventing race conditions during simultaneous bookings. We also built a software-managed security deposit ledger that holds deposits "
+        "in escrow until returned machines pass inspection, alongside an optional Rentora Care damage protection plan (₹149/mo) that caps renter liability at ₹10,000 for minor scratches and accidental spills."
     )
     add_body_p(
-        "Intelligence Batch Tier: Asynchronous Python workers execute Extract-Transform-Load (ETL) routines, aggregating customer rentals, billing history, and feedback. The pipeline serializes "
-        "trained models using joblib and populates derived MongoDB collections (user_churn_scores and appliance_recommendations) for low-latency storefront retrieval."
+        "Python Machine Learning Tier: Standalone Python jobs handle data extraction, feature transformation, model scoring, and recommendations. The jobs query MongoDB, process behavioral features, "
+        "run inference using saved LightGBM and recommender joblib artifacts, and write updated scores back into specialized collections (user_churn_scores and appliance_recommendations) for fast API reads."
     )
 
     # ─────────────────────────────────────────────────────────────────────────
     # V. DATASETS & FEATURE ENGINEERING
     # ─────────────────────────────────────────────────────────────────────────
     add_sec_heading("V. DATASETS & FEATURE ENGINEERING")
-    add_subsec_heading("A. Customer Churn Risk Benchmark Corpus (Proxy Formulation)")
+    add_subsec_heading("A. Customer Churn Dataset: Mapping and Proxy Nature")
     add_body_p(
-        "Because nascent circular rental startups lack decadal operational churn logs, the predictive pipeline was evaluated using an established proxy methodology. "
-        "The model is trained on the public 10,000-record Bank Customer Churn dataset [15], exhibiting a 20.37% empirical attrition rate (2,037 churned, 7,963 retained). "
-        "The banking fields are mapped into 15 rental-domain operational features via fixed deterministic mathematical transformations (Table III). "
-        "Crucially, the binary churn ground-truth label is preserved without alteration. No stochastic jitter is injected. This proxy benchmark evaluates the algorithmic scalability, "
-        "latency, and feature attribution logic of the pipeline, establishing a rigorous computational baseline prior to the collection of long-term empirical appliance leasing telemetry."
+        "Because our startup platform does not yet have years of historical customer records, we evaluated our churn-prediction pipeline using a deterministic proxy approach. "
+        "We used the public Bank Customer Churn dataset [15], which contains 10,000 customer records and an actual churn rate of 20.37% (2,037 customers left, 7,963 stayed). "
+        "We wrote deterministic mathematical rules in evaluate_models.py to map each bank record into 15 rental-domain operational features (Table III). "
+        "Importantly, we kept the original churn label exactly as-is and added zero random noise. Every single value is calculated directly from source fields like tenure, salary, balance, credit score, and membership activity. "
+        "We want to be completely clear: bank customers are not appliance renters, and these features are proxy stand-ins rather than observed rental behavior. This experiment verifies that our data pipeline, model training, "
+        "latency, and feature-explanation workflows function properly before we collect longitudinal data from live appliance renters."
     )
 
     # TABLE III
@@ -464,28 +455,28 @@ def build_manuscript(output_docx_path):
     p_t3_lbl.alignment = WD_ALIGN_PARAGRAPH.CENTER
     p_t3_lbl.paragraph_format.space_before = Pt(6)
     p_t3_lbl.paragraph_format.space_after = Pt(2)
-    r = p_t3_lbl.add_run("TABLE III\nFEATURE ENGINEERING SPECIFICATION & EMPIRICAL BOUNDS (N = 10,000)")
+    r = p_t3_lbl.add_run("TABLE III\nFEATURE SPECIFICATIONS AND VERIFIED EMPIRICAL BOUNDS (N = 10,000)")
     r.font.name = "Times New Roman"
     r.font.size = Pt(8.5)
     r.font.bold = True
 
     t3_data = [
-        ["Rental Behavioral Feature", "Empirical Range [Min, Max]", "Deterministic Derivation Formula", "Operational Meaning & Data Status"],
-        ["tenure_months", "1 – 120 mo", "(raw['Tenure'] * 12 + (raw['Age'] % 12)).clip(1, 120)", "Account subscription duration; Proxy"],
-        ["monthly_spend", "₹2.25 – ₹5,349.27", "round(raw['EstimatedSalary']/40 + (raw['Balance']>0)*350, 2)", "Estimated recurring monthly rent; Proxy"],
-        ["active_rentals", "1 – 4 units", "raw['NumOfProducts'].clip(1, 5) [source max is 4]", "Concurrent active leased machines; Proxy"],
-        ["credit_score", "350 – 850", "raw['CreditScore']", "Financial credit standing indicator; Proxy"],
-        ["customer_age", "18 – 92 yrs", "raw['Age']", "Tenant demographic age indicator; Proxy"],
-        ["is_active_member", "{0, 1}", "raw['IsActiveMember']", "Platform engagement loyalty status; Proxy"],
-        ["late_payments", "0 – 5 events", "round(((850 - CreditScore)/85) + (1-IsActive)*1.5 + (Bal==0)*0.5).clip(0, 5)", "Overdue payment delinquency count; Heuristic"],
-        ["early_returns", "0 – 2 events", "(1 - IsActive)*(Tenure <= 2) + (CreditScore < 520)", "Premature lease termination history; Heuristic"],
-        ["cart_abandonment", "{0, 2, 4} events", "(1 - IsActiveMember)*2 + (NumOfProducts == 1)*2", "Dormant cart sessions without checkout; Heuristic"],
-        ["days_inactive", "0.0 – 55.0 days", "round((1 - IsActiveMember)*35 + (10 - Tenure)*2, 1).clip(0, 90)", "Dormancy since last authenticated session; Heuristic"],
-        ["avg_rating", "2.60 – 5.00 ★", "round(IsActiveMember*0.8 + (CreditScore / 250) + 1.2, 2).clip(1, 5)", "Customer satisfaction feedback rating; Heuristic"],
-        ["spend_per_rental", "₹1.07 – ₹4,862.97", "round(monthly_spend / (active_rentals + 0.1), 2)", "Monthly revenue ticket per leased machine; Derived"],
-        ["delinquency_rate", "0.00 – 2.50", "round(late_payments / (active_rentals + 1.0), 4)", "Ratio of overdue payments to active leases; Derived"],
-        ["inactivity_rate", "0.00 – 1.77", "round(days_inactive / (tenure_months * 30 + 1.0), 4)", "Tenure proportion spent in dormancy; Derived"],
-        ["engagement_score", "1.011 – 5.000", "round(avg_rating * (1.0 - min(1.0, days_inactive / 90.0)), 3)", "Composite satisfaction and activity index; Derived"]
+        ["Rental Feature Name", "True Range [Min, Max]", "How It Is Calculated from Bank Data", "Operational Meaning & Data Status"],
+        ["tenure_months", "1 – 120 mo", "(raw['Tenure'] * 12 + (raw['Age'] % 12)).clip(1, 120)", "Months user has had an account; Proxy"],
+        ["monthly_spend", "₹2.25 – ₹5,349.27", "round(raw['EstimatedSalary']/40 + (raw['Balance']>0)*350, 2)", "Estimated monthly rental bill; Proxy"],
+        ["active_rentals", "1 – 4 units", "raw['NumOfProducts'].clip(1, 5) [bank max is 4]", "Number of active leased items; Proxy"],
+        ["credit_score", "350 – 850", "raw['CreditScore']", "Financial credit standing; Proxy"],
+        ["customer_age", "18 – 92 yrs", "raw['Age']", "Tenant age; Proxy"],
+        ["is_active_member", "{0, 1}", "raw['IsActiveMember']", "Active platform engagement flag; Proxy"],
+        ["late_payments", "0 – 5 events", "round(((850 - CreditScore)/85) + (1-IsActive)*1.5 + (Bal==0)*0.5).clip(0, 5)", "Overdue payment count; Heuristic proxy"],
+        ["early_returns", "0 – 2 events", "(1 - IsActive)*(Tenure <= 2) + (CreditScore < 520)", "Early lease termination count; Heuristic proxy"],
+        ["cart_abandonment", "{0, 2, 4} events", "(1 - IsActiveMember)*2 + (NumOfProducts == 1)*2", "Items left in cart without checkout; Heuristic proxy"],
+        ["days_inactive", "0.0 – 55.0 days", "round((1 - IsActiveMember)*35 + (10 - Tenure)*2, 1).clip(0, 90)", "Days since last platform login; Heuristic proxy"],
+        ["avg_rating", "2.60 – 5.00 ★", "round(IsActiveMember*0.8 + (CreditScore / 250) + 1.2, 2).clip(1, 5)", "Feedback rating given by user; Heuristic proxy"],
+        ["spend_per_rental", "₹1.07 – ₹4,862.97", "round(monthly_spend / (active_rentals + 0.1), 2)", "Average monthly rent per leased item; Derived ratio"],
+        ["delinquency_rate", "0.00 – 2.50", "round(late_payments / (active_rentals + 1.0), 4)", "Overdue bills per active subscription; Derived ratio"],
+        ["inactivity_rate", "0.00 – 1.77", "round(days_inactive / (tenure_months * 30 + 1.0), 4)", "Fraction of account tenure spent inactive; Derived ratio"],
+        ["engagement_score", "1.011 – 5.000", "round(avg_rating * (1.0 - min(1.0, days_inactive / 90.0)), 3)", "Composite rating and activity score; Derived index"]
     ]
 
     t3 = doc.add_table(rows=len(t3_data), cols=4)
@@ -517,24 +508,27 @@ def build_manuscript(output_docx_path):
                     r.font.bold = True
     set_table_borders(t3)
 
-    add_subsec_heading("B. Recommender Appliance Catalog Corpus")
+    add_subsec_heading("B. Appliance Catalog Dataset")
     add_body_p(
-        "The recommender engine is evaluated on the repository's curated catalog (data/appliances_catalog.csv), comprising 164 durable appliances categorized across "
-        "12 primary rooms and categories (Living Room, Kitchen, Bedroom, Home Office, Dining, Laundry, etc.) and 41 granular sub-categories (Refrigerators, Inverter Washing Machines, "
-        "Ergonomic Study Desks, Smart Microwave Ovens, Water Purifiers, etc.). Among these, 162 items possess explicit sub-category labels suitable for semantic retrieval validation."
+        "We tested our recommender engine on the appliance catalog exported from our platform (data/appliances_catalog.csv). "
+        "The catalog contains 164 appliances across 12 main categories (Living Room, Kitchen, Bedroom, Home Office, Dining, Laundry, etc.) and 41 sub-categories "
+        "(Double-door Refrigerators, Front-load Washing Machines, Ergonomic Chairs, Microwave Ovens, Water Purifiers, etc.). "
+        "Of these, 162 items have explicit sub-category labels, allowing us to test how accurately the system matches related appliances."
     )
 
     # ─────────────────────────────────────────────────────────────────────────
     # VI. METHODOLOGY & MATHEMATICAL FORMULATIONS
     # ─────────────────────────────────────────────────────────────────────────
     add_sec_heading("VI. METHODOLOGY & MATHEMATICAL FORMULATIONS")
-    add_subsec_heading("A. Hybrid Recommender System Formulation")
+    add_subsec_heading("A. Hybrid Recommendation Engine")
     add_body_p(
-        "Rentora combines content-based lexical similarity, item-to-item co-rental association, Bayesian rating smoothing, energy-efficiency incentives, and budget affinity."
+        "Our recommender combines five signals: what an appliance is (content description), what other customers rent together (co-rental affinity), "
+        "how well it is rated by other users, how energy-efficient it is, and whether the monthly rent fits the user's budget."
     )
     add_body_p(
-        "1. Lexical Content Similarity: For each appliance, a descriptive document is synthesized from boosted category tokens (3×), sub-category tokens (2×), rental name, "
-        "and specifications. Sublinear TF-IDF vectors ti, tj are extracted across unigrams and bigrams (vocabulary ceiling: 2,500 features). Cosine similarity computes semantic alignment:"
+        "1. Content Similarity: For each appliance, we build a text description from its name, specifications, category, and sub-category. "
+        "To ensure appliances stay coherent with their room context, we boost category terms by 3× and sub-category terms by 2×. We vectorize these texts using sublinear TF-IDF "
+        "(unigrams and bigrams, max 2,500 features). The similarity between two appliances i and j is calculated using the cosine of their TF-IDF feature vectors ti and tj:"
     )
     p_eq1 = doc.add_paragraph()
     p_eq1.alignment = WD_ALIGN_PARAGRAPH.CENTER
@@ -544,7 +538,7 @@ def build_manuscript(output_docx_path):
     r_eq1.font.bold = True
 
     add_body_p(
-        "2. Co-Rental Collaborative Affinity: Past rental co-occurrences are mined into a symmetric association matrix, normalized by the geometric mean of individual rental frequencies [14]:"
+        "2. Co-Rental Affinity: As users rent multiple items, we count how often pairs of appliances are booked by the same customer, normalized by the geometric mean of their individual rental counts [14]:"
     )
     p_eq2 = doc.add_paragraph()
     p_eq2.alignment = WD_ALIGN_PARAGRAPH.CENTER
@@ -554,8 +548,9 @@ def build_manuscript(output_docx_path):
     r_eq2.font.bold = True
 
     add_body_p(
-        "3. Composite Hybrid Scoring: For user u and candidate appliance j, let c denote the mean content similarity and k the mean co-rental affinity relative to user u's active leases. "
-        "To mitigate early collaborative sparsity, a category synergy prior s >= 0.22 is injected for complementary room pairings (e.g., refrigerator paired with water purifier). The composite score is:"
+        "3. Composite Scoring Formula: For customer u and a candidate appliance j, let c be the average content similarity and k the average co-rental affinity relative to appliances u already rents. "
+        "Because early co-rental data is sparse, we add a room-synergy bootstrap bonus s >= 0.22 if the candidate complements an item the user already has (for example, pairing a refrigerator with a water purifier or induction cooktop). "
+        "The overall ranking score is calculated as:"
     )
     p_eq3 = doc.add_paragraph()
     p_eq3.alignment = WD_ALIGN_PARAGRAPH.CENTER
@@ -565,14 +560,14 @@ def build_manuscript(output_docx_path):
     r_eq3.font.bold = True
 
     add_body_p(
-        "where q_j represents the Bayesian smoothed rating shrunk toward platform prior C = 4.30 across review count v_j: q_j = (v_j · r_j + 12 × 4.30)/(v_j + 12); e_j denotes the eco-tier energy bonus "
-        "(0.15 for >= 4-star inverter appliances, 0.05 otherwise); and π_j represents Gaussian budget affinity: π_j = exp(-0.5 ((p_j - B_u) / σ_B)^2), where B_u is the tenant's historical median monthly spend "
-        "(default ₹1,200 when no prior leases exist) and budget dispersion is bounded by σ_B = max(0.8 B_u, 600.0)."
+        "where q_j is the user rating smoothed toward the platform average C = 4.30 across review count v_j: q_j = (v_j · r_j + 12 × 4.30)/(v_j + 12), ensuring an item with only one 5-star review does not unfairly top the list; "
+        "e_j is an eco-bonus (0.15 for 4-star or 5-star inverter appliances, 0.05 otherwise); and π_j is a Gaussian price-fit term: π_j = exp(-0.5 ((p_j - B_u) / σ_B)^2), where B_u is the customer's median monthly rental spend "
+        "(default ₹1,200 for new users) and budget spread is σ_B = max(0.8 B_u, 600.0). Items the customer already rents are excluded. The top 6 items are saved to appliance_recommendations with at most 2 per sub-category for variety."
     )
 
-    add_subsec_heading("B. Churn Risk Machine Learning Formulation")
+    add_subsec_heading("B. Churn Prediction Model")
     add_body_p(
-        "Binary churn status is modeled via LightGBM [6], an ensemble of M decision trees whose aggregated continuous leaf values parameterize the Bernoulli churn probability:"
+        "We model customer churn using LightGBM [6], an ensemble of M decision trees whose combined outputs define the probability that a customer will cancel:"
     )
     p_eq4 = doc.add_paragraph()
     p_eq4.alignment = WD_ALIGN_PARAGRAPH.CENTER
@@ -582,14 +577,14 @@ def build_manuscript(output_docx_path):
     r_eq4.font.bold = True
 
     add_body_p(
-        "where f_m(x) = η · ŷ_{m,leaf}(x) represents the continuous leaf prediction of the m-th decision tree scaled by shrinkage factor η = 0.04, and sum_{m=1}^M f_m(x) ∈ ℝ "
-        "denotes the cumulative log-odds margin. The model is parameterized with M = 300 estimators, maximum tree depth 4, 20 leaves, feature subsampling ratio 0.85, row subsampling 0.85, "
-        "class re-weighting scale_pos_weight = 1.4, and L1/L2 penalties of 0.1 each. A Random Forest [7] with 250 trees of depth 12 serves as the bagging benchmark."
+        "where f_m(x) = η · ŷ_{m,leaf}(x) is the leaf value of the m-th tree scaled by learning rate η = 0.04, and sum_{m=1}^M f_m(x) ∈ ℝ is the cumulative log-odds score. "
+        "We set LightGBM to 300 trees of depth 4 with at most 20 leaves, feature subsampling of 0.85, row subsampling of 0.85, a class weight of 1.4 on the minority churn class, and L1/L2 regularization of 0.1. "
+        "We compared this against a Random Forest baseline [7] with 250 trees of depth 12. We split the data into 80% training (8,000 customers) and 20% test (2,000 customers) with stratified churn rates and random_state = 42."
     )
 
-    add_subsec_heading("C. Explainable AI via Exact TreeSHAP")
+    add_subsec_heading("C. Explainable Predictions with TreeSHAP")
     add_body_p(
-        "For model f and customer feature vector x, the Shapley value phi_k measures feature k's additive marginal contribution across all possible feature subsets S:"
+        "To help customer support teams act on predictions, we compute feature attributions using Shapley values [8], [12]. For a customer's feature vector x, the Shapley value phi_k measures feature k's marginal contribution across all feature subsets S:"
     )
     p_eq5 = doc.add_paragraph()
     p_eq5.alignment = WD_ALIGN_PARAGRAPH.CENTER
@@ -599,18 +594,18 @@ def build_manuscript(output_docx_path):
     r_eq5.font.bold = True
 
     add_body_p(
-        "We utilize TreeSHAP [9] to evaluate Equation (5) in low-order polynomial time O(TLD^2) directly from tree node statistics, converting raw mathematical attributions into "
-        "plain-language operational drivers presented directly in the administrator dashboard."
+        "We evaluate Equation (5) using TreeSHAP [9] directly from tree node statistics in polynomial time O(TLD^2). The values sum up in log-odds to the model's margin output. "
+        "The highest positive contributions are converted into short, readable explanations (e.g. 'Payment delinquency and high inactivity drove churn risk') shown on the admin dashboard."
     )
 
     # ─────────────────────────────────────────────────────────────────────────
     # VII. EXPERIMENTAL RESULTS & PERFORMANCE ANALYSIS
     # ─────────────────────────────────────────────────────────────────────────
     add_sec_heading("VII. EXPERIMENTAL RESULTS & PERFORMANCE ANALYSIS")
-    add_subsec_heading("A. Churn Prediction Classification Performance")
+    add_subsec_heading("A. Churn Prediction Performance")
     add_body_p(
-        "Table IV and Figure 2 present the held-out test split evaluation (N = 2,000 customers, 407 churners) at the standard classification threshold of 0.50. "
-        "All reported metrics were generated via run_experiments.py using genuine LightGBM 4.7.0 and scikit-learn 1.9.1."
+        "Table IV and Figure 2 compare LightGBM with the Random Forest baseline on our 2,000-customer held-out test split (407 churners) at the standard 0.50 decision threshold. "
+        "All metrics were generated by executing run_experiments.py with Python 3.14, LightGBM 4.7.0, and scikit-learn 1.9.1."
     )
 
     # TABLE IV
@@ -626,7 +621,7 @@ def build_manuscript(output_docx_path):
     t4_data = [
         ["Model Architecture", "Accuracy", "Precision", "Recall", "F1-Score", "ROC-AUC", "PR-AUC"],
         ["Random Forest Baseline", "0.852", "0.741", "0.415", "0.532", "0.819", "0.643"],
-        ["Genuine LightGBM (This Work)", "0.860", "0.727", "0.496", "0.590", "0.833", "0.666"]
+        ["Genuine LightGBM (Our Work)", "0.860", "0.727", "0.496", "0.590", "0.833", "0.666"]
     ]
 
     t4 = doc.add_table(rows=len(t4_data), cols=7)
@@ -669,8 +664,8 @@ def build_manuscript(output_docx_path):
         add_fig_caption(2, "ROC and Precision-Recall curves comparing LightGBM and Random Forest on the held-out test split (N=2,000).")
 
     add_body_p(
-        "Empirical analysis reveals that LightGBM achieves superior discrimination, leading Random Forest by +0.014 in ROC-AUC (0.833 vs. 0.819) and +0.023 in PR-AUC (0.666 vs. 0.643). "
-        "Crucially for customer retention, LightGBM captures substantially more true churners (Recall: 0.496 vs. 0.415), translating to an 11% improvement in F1-score (0.590 vs. 0.532)."
+        "Looking at the test split, LightGBM outperforms Random Forest on all primary discrimination metrics: ROC-AUC is 0.833 vs. 0.819 (+0.014 gain), and PR-AUC is 0.666 vs. 0.643 (+0.023 gain). "
+        "More importantly for a rental business, LightGBM catches noticeably more churners: recall is 49.6% compared to 41.5% for the baseline, pushing F1-score from 0.532 to 0.590 (an 11% improvement)."
     )
 
     # TABLE V
@@ -678,7 +673,7 @@ def build_manuscript(output_docx_path):
     p_t5_lbl.alignment = WD_ALIGN_PARAGRAPH.CENTER
     p_t5_lbl.paragraph_format.space_before = Pt(6)
     p_t5_lbl.paragraph_format.space_after = Pt(2)
-    r = p_t5_lbl.add_run("TABLE V\nSTRATIFIED FIVE-FOLD CROSS-VALIDATION PERFORMANCE (MEAN ± SD)")
+    r = p_t5_lbl.add_run("TABLE V\nSTRATIFIED FIVE-FOLD CROSS-VALIDATION (MEAN ± SD)")
     r.font.name = "Times New Roman"
     r.font.size = Pt(8.5)
     r.font.bold = True
@@ -686,7 +681,7 @@ def build_manuscript(output_docx_path):
     t5_data = [
         ["Model Architecture", "ROC-AUC (Mean ± SD)", "PR-AUC (Mean ± SD)", "F1-Score (Mean ± SD)"],
         ["Random Forest Baseline", "0.824 ± 0.011", "0.643 ± 0.018", "0.535 ± 0.012"],
-        ["Genuine LightGBM (This Work)", "0.833 ± 0.012", "0.661 ± 0.018", "0.572 ± 0.017"]
+        ["Genuine LightGBM (Our Work)", "0.833 ± 0.012", "0.661 ± 0.018", "0.572 ± 0.017"]
     ]
 
     t5 = doc.add_table(rows=len(t5_data), cols=4)
@@ -719,11 +714,14 @@ def build_manuscript(output_docx_path):
     set_table_borders(t5)
 
     add_body_p(
-        "Stratified 5-fold cross-validation (Table V) confirms that LightGBM's advantage is stable across random fold partitions: ROC-AUC 0.833 ± 0.012 vs. 0.824 ± 0.011. "
-        "Figure 3 details the confusion matrix at the standard 0.50 threshold: LightGBM successfully catches 202 of 407 churners with only 76 false alarms among 1,593 retained customers. "
-        "In enterprise rental operations where the cost of proactive retention outreach (e.g. an automated 15% retention discount) is negligible compared to losing subscriber lifetime value (LTV), "
-        "operators can adjust the decision threshold to 0.32. At threshold 0.32, LightGBM recall increases from 49.6% to 65.6% (267 of 407 churners caught, a 32% increase in detected attrition) "
-        "with precision of 53.1% (236 false alarms), F1-score of 0.587, and peak F2-score of 0.627 (Confusion Matrix: TN=1357, FP=236, FN=140, TP=267)."
+        "Stratified 5-fold cross-validation across all 10,000 customers (Table V) shows that this performance margin holds across different data partitions: ROC-AUC is 0.833 ± 0.012 for LightGBM "
+        "versus 0.824 ± 0.011 for Random Forest, and PR-AUC is 0.661 ± 0.018 versus 0.643 ± 0.018. Figure 3 shows the confusion matrix at the standard 0.50 threshold: LightGBM correctly catches "
+        "202 of 407 churners while generating only 76 false alarms out of 1,593 retained customers."
+    )
+    add_body_p(
+        "Practical Threshold Tuning for Customer Retention: In real rental operations, the cost of an automated retention offer (like a 15% discount on next month's lease) is tiny compared to losing a customer's monthly rental income. "
+        "Because of this, an operator might prefer higher recall over high precision. In our tests, lowering the decision threshold to 0.32 boosted recall from 49.6% to 65.6% (catching 267 of 407 churners, a 32% increase in detected churners) "
+        "with 53.1% precision (236 false alarms) and a peak F2-score of 0.627 (Confusion Matrix: TN=1357, FP=236, FN=140, TP=267). This shows how the model can be tuned to match different business priorities."
     )
 
     # Fig 3 Image
@@ -734,13 +732,12 @@ def build_manuscript(output_docx_path):
         p_img3.add_run().add_picture(img3_path, width=Inches(2.8))
         add_fig_caption(3, "LightGBM confusion matrix on the held-out test split at standard threshold 0.50 (202 churners caught, 76 false alarms).")
 
-    add_subsec_heading("B. Feature Importance and Explainable Risk Drivers")
+    add_subsec_heading("B. Feature Importance and TreeSHAP Explanations")
     add_body_p(
-        "Global feature attribution computed via TreeSHAP (Figure 4) ranks customer_age (mean |phi| = 0.80 log-odds) and active_rentals (mean |phi| = 0.63 log-odds) as the dominant drivers "
-        "of attrition risk in margin space, followed by cart_abandonment (0.19), engagement_score (0.16), avg_rating (0.10), and monthly_spend (0.10). "
-        "Crucially, this ranking reflects the mathematical structure of the underlying banking proxy corpus, where age and account product counts exhibit high variance. "
-        "This ranking must not be interpreted as an empirical discovery regarding home appliance renters. However, secondary operational drivers (cart abandonment, payment delinquency, feedback rating) "
-        "represent concrete, actionable operational levers for retention intervention."
+        "Global feature attributions from TreeSHAP (Figure 4) rank customer_age (mean |phi| = 0.80 log-odds) and active_rentals (mean |phi| = 0.63 log-odds) as the top drivers of churn risk, "
+        "followed by cart_abandonment (0.19), engagement_score (0.16), avg_rating (0.10), and monthly_spend (0.10). It is essential to understand why: in the original banking dataset, "
+        "customer age and the number of bank products had the largest variance, and our mapping formulas copied those values across. This ranking reflects the structure of the proxy data, not an empirical discovery "
+        "about appliance renters. However, the secondary behavioral features—like cart abandonment, late payments, and rating feedback—are actionable factors that customer support teams can address directly."
     )
 
     # Fig 4 Image
@@ -749,12 +746,12 @@ def build_manuscript(output_docx_path):
     img4_path = os.path.join(fig_dir, "fig4_shap_summary.png")
     if os.path.exists(img4_path):
         p_img4.add_run().add_picture(img4_path, width=Inches(4.2))
-        add_fig_caption(4, "TreeSHAP summary plot illustrating the global distribution of feature impact on log-odds margin across 100 sampled test instances.")
+        add_fig_caption(4, "TreeSHAP summary plot showing feature contributions to log-odds margin across 100 test samples. Positive values increase churn risk.")
 
     add_body_p(
-        "Figure 5 displays the local waterfall explanation for the highest-risk tenant in the test split (base log-odds: -1.52, cumulative margin: +5.19, churn probability: 0.994). "
-        "Holding 4 active rentals (+4.77 log-odds) combined with older age (+1.04 log-odds) and credit score (+0.39 log-odds) drives the tenant into critical attrition risk, "
-        "counteracted only by long tenure (-1.36 log-odds). Providing this exact decomposition in the administrator dashboard allows staff to verify the root cause before dispatching technicians or adjusting lease commitments."
+        "Figure 5 shows the local waterfall explanation for the single highest-risk customer in our test split (base log-odds: -1.52, final margin: +5.19, predicted churn probability: 0.994). "
+        "Having 4 active rentals added +4.77 to the log-odds score, older age added +1.04, and credit score added +0.39, while longer tenure (-1.36) helped anchor retention. "
+        "Displaying this breakdown on the admin dashboard gives staff concrete context before reaching out to the customer."
     )
 
     # Fig 5 Image
@@ -763,14 +760,13 @@ def build_manuscript(output_docx_path):
     img5_path = os.path.join(fig_dir, "fig5_local_shap_waterfall.png")
     if os.path.exists(img5_path):
         p_img5.add_run().add_picture(img5_path, width=Inches(4.2))
-        add_fig_caption(5, "Local TreeSHAP explanation for the highest-risk tenant, decomposing log-odds risk (base log-odds: -1.52, margin: +5.19, prob: 0.994) into exact feature contributions.")
+        add_fig_caption(5, "Local TreeSHAP waterfall explanation for the highest-risk tenant (base log-odds -1.52, margin +5.19, prob 0.994).")
 
-    add_subsec_heading("C. Recommender Catalog Coherence Evaluation")
+    add_subsec_heading("C. Recommender Catalog Evaluation")
     add_body_p(
-        "Table VI evaluates the semantic clustering quality of the TF-IDF content recommender on the 164-item appliance catalog at retrieval depth K = 5. "
-        "When evaluated against fine-grained sub-categories (41 classes across 162 labeled items), top-5 recommendations achieve 59.3% precision, representing a 14.1× lift "
-        "over random baseline ranking (4.2%). The hit rate reaches 96.5%, and catalog coverage is 96.3%, demonstrating that the vector space reliably retrieves contextually relevant "
-        "companion appliances without leaving catalog items orphaned."
+        "Table VI tests our TF-IDF recommender directly on the 164-item appliance catalog at K = 5. When evaluating against granular sub-categories (41 classes across 162 items), "
+        "top-5 suggestions achieved 59.3% precision, which is a 14.1× improvement over random baseline selection (4.2%). The hit rate reached 96.5% (meaning almost every query item found "
+        "at least one companion in the same sub-category), and catalog coverage was 96.3%, showing that items across the entire catalog get recommended rather than concentrating on a few popular units."
     )
 
     # TABLE VI
@@ -778,13 +774,13 @@ def build_manuscript(output_docx_path):
     p_t6_lbl.alignment = WD_ALIGN_PARAGRAPH.CENTER
     p_t6_lbl.paragraph_format.space_before = Pt(6)
     p_t6_lbl.paragraph_format.space_after = Pt(2)
-    r = p_t6_lbl.add_run("TABLE VI\nRECOMMENDER RETRIEVAL COHERENCE ON APPLIANCE CATALOG (K = 5)")
+    r = p_t6_lbl.add_run("TABLE VI\nRECOMMENDER RETRIEVAL QUALITY ON APPLIANCE CATALOG (K = 5)")
     r.font.name = "Times New Roman"
     r.font.size = Pt(8.5)
     r.font.bold = True
 
     t6_data = [
-        ["Semantic Level (Classes)", "Precision@5", "Random Chance", "Hit Rate@5", "Recall@5", "Catalog Coverage"],
+        ["Catalog Evaluation Level", "Precision@5", "Random Chance", "Hit Rate@5", "Recall@5", "Catalog Coverage"],
         ["Sub-Category (n=162, 41 classes)", "0.593", "0.042", "0.965", "0.659", "0.963"],
         ["Category (n=164, 12 classes)", "0.604", "0.207", "0.921", "0.633", "0.970"]
     ]
@@ -819,27 +815,26 @@ def build_manuscript(output_docx_path):
     set_table_borders(t6)
 
     # ─────────────────────────────────────────────────────────────────────────
-    # VIII. DISCUSSION & THREATS TO VALIDITY
+    # VIII. DISCUSSION & LIMITATIONS
     # ─────────────────────────────────────────────────────────────────────────
-    add_sec_heading("VIII. DISCUSSION & THREATS TO VALIDITY")
+    add_sec_heading("VIII. DISCUSSION & LIMITATIONS")
     add_body_p(
-        "Operational Value: By consolidating storefront transactions, inventory controls, and machine learning scoring onto a unified MongoDB operational store, "
-        "Rentora eliminates organizational data silos. Recommenders minimize subscriber cognitive friction, while TreeSHAP explainability equips support agents with "
-        "unambiguous risk factors rather than opaque probability scores."
+        "Practical Value in Operations: Connecting our machine learning pipelines directly to MongoDB makes real-time data actionable. Renters receive automated room bundle suggestions "
+        "that simplify furnishing an apartment, while support staff receive early alerts about subscribers who might cancel, complete with TreeSHAP explanations of why."
     )
     add_body_p(
-        "Threats to Validity & Academic Limitations: In the spirit of rigorous academic inquiry, we document seven distinct technical limitations: "
-        "(1) Benchmark Proxy Domain Gap: The churn evaluation utilizes deterministically mapped banking data. While validating pipeline throughput, latency, and XAI mechanics, "
-        "it cannot serve as final proof of empirical rental behavior. (2) Algorithmic Proximity: The performance delta between LightGBM and Random Forest (0.01 in ROC-AUC) lies within "
-        "one cross-validation standard deviation; neither model exhibits absolute dominance. (3) Non-Causal Nature of SHAP: Shapley attributions explain model log-odds, not customer intent; "
-        "altering a feature externally does not guarantee behavioral change. (4) Recommender Acceptance: Table VI evaluates textual catalog coherence, not customer click-through rate (CTR) "
-        "or lease conversion. (5) Single-Corpus Cross-Validation: Findings are derived from an 80/20 partition and 5-fold CV on a single corpus. (6) Deployment Parameter Imputation: "
-        "In live scoring, demographic age is imputed as a constant (32) and credit score is estimated from late payments, rendering deployed risk scores heuristic indices rather than "
-        "calibrated Bayesian probabilities. (7) Sandbox Services: Payments (Razorpay test mode), KYC identity validation, and delivery tracking operate within an academic prototype sandbox."
+        "Explicit Research Limitations: To maintain academic honesty, we document seven limitations of this study: "
+        "(1) Proxy Dataset Gap: Our churn model was evaluated on bank customer data mapped to rental features; while this proves the pipeline works, it is not a substitute for data from real appliance renters. "
+        "(2) Modest Performance Difference: LightGBM leads Random Forest by roughly 0.01 in ROC-AUC, which is within one standard deviation of cross-validation; both tree models perform solidly. "
+        "(3) SHAP Explains the Model, Not Human Intent: Shapley values describe feature weights inside the model, but changing an operational feature does not automatically guarantee a customer will change their mind. "
+        "(4) Catalog Evaluation vs. User Acceptance: Table VI shows that TF-IDF successfully groups similar products together, but it does not measure whether real customers actually rent those suggested items. "
+        "(5) Single Dataset Split: Results come from an 80/20 train/test split and 5-fold cross-validation on one benchmark. "
+        "(6) Production Scoring Imputations: In our live ETL pipeline, customer age is currently defaulted to 32 and credit scores are estimated from payment timeliness, meaning deployed scores are heuristic risk indices rather than true calibrated probabilities. "
+        "(7) Simulated Third-Party Integrations: Payments (Razorpay test mode), KYC document lookups, and delivery tracking currently run in a sandbox prototype rather than through production government or banking contracts."
     )
     add_body_p(
-        "Data Governance and Privacy: In compliance with modern data privacy frameworks, customer telemetry is sanitized prior to batch ingestion. "
-        "Identity document scans processed via in-browser Tesseract.js are discarded after client-side numeral extraction, preventing PII data leakage."
+        "Privacy and Data Governance: Customer records must be anonymized before batch analytics. Our client-side Tesseract.js OCR processes identity documents directly in the browser and discards images immediately, "
+        "preventing identity photos from being stored on server disks."
     )
 
     # ─────────────────────────────────────────────────────────────────────────
@@ -847,16 +842,16 @@ def build_manuscript(output_docx_path):
     # ─────────────────────────────────────────────────────────────────────────
     add_sec_heading("IX. CONCLUSION & FUTURE WORK")
     add_body_p(
-        "This research demonstrated the architectural realization and empirical benchmarking of Rentora, an AI-enhanced digital appliance leasing platform. "
-        "By integrating a content-collaborative recommender and a LightGBM churn prediction engine into a full-stack React/Express/MongoDB system, "
-        "Rentora addresses critical operational bottlenecks in circular durables leasing. On a 10,000-record benchmark corpus, LightGBM demonstrated superior "
-        "churn detection (ROC-AUC 0.833, F1 0.590) with polynomial-time TreeSHAP local explanations, while the recommender achieved 59.3% sub-category coherence (14.1× lift over chance). "
-        "Future work will focus on: (1) capturing longitudinal production telemetry from live Rentora deployments; (2) conducting live A/B testing to measure recommender conversion lift; "
-        "(3) replacing banking proxy features with empirical sensor and IoT telemetry; and (4) quantifying the commercial ROI of explanation-guided retention outreach in controlled field trials."
+        "In this work, we developed and evaluated Rentora, an end-to-end appliance rental platform that integrates personalized catalog recommendation and churn-risk prediction into everyday leasing operations. "
+        "Using a decoupled architecture with React 19, Express, MongoDB, and Python, the system keeps customer transactions fast and reliable while running machine learning tasks in the background. "
+        "On our 10,000-record benchmark dataset, LightGBM achieved an ROC-AUC of 0.833 and an F1-score of 0.590, providing reliable churn detection that TreeSHAP turns into clear, staff-facing explanations. "
+        "Our hybrid recommender achieved 59.3% sub-category precision (a 14.1× boost over random selection) with 96.3% catalog coverage on 164 catalog items. "
+        "For future work, we plan to: (1) gather longitudinal usage data from real Rentora users; (2) run live A/B tests to measure customer click-through and lease conversion rates; "
+        "(3) replace proxy banking features with real IoT and rental payment data; and (4) measure the actual business impact of retention outreach in a controlled trial."
     )
     add_body_p(
-        "Scientific Reproducibility: All empirical tables (IV, V, VI) and figures (2, 3, 4, 5) reported in this manuscript are deterministically reproducible by executing "
-        "python run_experiments.py --seed 42 in the official open-source repository: github.com/Nayak17-07/Rentora."
+        "Reproducibility: Evaluators can independently reproduce all tables (IV, V, VI) and figures (2, 3, 4, 5) by cloning the repository and running: "
+        "python run_experiments.py --seed 42 in the official open-source repository at github.com/Nayak17-07/Rentora."
     )
 
     # ─────────────────────────────────────────────────────────────────────────
@@ -960,4 +955,3 @@ def build_manuscript(output_docx_path):
 if __name__ == "__main__":
     target = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "final_submission", "Rentora_Revised_Research_Paper.docx")
     build_manuscript(target)
-
