@@ -65,7 +65,7 @@ AUTHORS_LIST = [
     {
         "name": "Siddartha",
         "role": "Co-Author / Research Analyst",
-        "email": "siddharthavarma799@gmail.com",
+        "email": "siddartha3352@gmail.com",
         "orcid": "0009-0005-1172-6839",
         "affiliation": "Department of Computer Science and Engineering (AI & ML), Keshav Memorial Institute of Technology, Hyderabad, India",
         "credit": "Investigation, Statistical Significance Testing, Literature Survey, Writing – Review & Editing"

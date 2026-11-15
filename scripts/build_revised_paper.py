@@ -102,7 +102,7 @@ def build_manuscript(output_docx_path, anonymized=False):
             [
                 ("Kolloju Raghava", "Dept. of CSE (AI & ML)\nKeshav Memorial Institute of Tech.\nHyderabad, India\nkollojuraghava414@gmail.com\nORCID: 0009-0003-9021-4473"),
                 ("Md Rehal", "Dept. of CSE (AI & ML)\nKeshav Memorial Institute of Tech.\nHyderabad, India\nmdrehal07@gmail.com\nORCID: 0009-0004-3319-8054"),
-                ("Siddartha", "Dept. of CSE (AI & ML)\nKeshav Memorial Institute of Tech.\nHyderabad, India\nsiddharthavarma799@gmail.com\nORCID: 0009-0005-1172-6839")
+                ("Siddartha", "Dept. of CSE (AI & ML)\nKeshav Memorial Institute of Tech.\nHyderabad, India\nsiddartha3352@gmail.com\nORCID: 0009-0005-1172-6839")
             ]
         ]
 
