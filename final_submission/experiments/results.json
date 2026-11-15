@@ -1,6 +1,6 @@
 {
   "seed": 42,
-  "timestamp": "2026-11-15T11:01:54Z",
+  "timestamp": "2026-11-15T12:08:25Z",
   "table_iv_test_split": {
     "logistic_regression": {
       "accuracy": 0.7325,
@@ -10,7 +10,7 @@
       "roc_auc": 0.8216737538771437,
       "pr_auc": 0.5961314029615744,
       "brier_score": 0.1702578457712736,
-      "train_time_sec": 0.02345728874206543
+      "train_time_sec": 0.09575462341308594
     },
     "random_forest": {
       "accuracy": 0.8515,
@@ -20,7 +20,7 @@
       "roc_auc": 0.8191658530641581,
       "pr_auc": 0.6428605327330449,
       "brier_score": 0.11404982949734024,
-      "train_time_sec": 0.4332315921783447
+      "train_time_sec": 1.2071988582611084
     },
     "lightgbm": {
       "accuracy": 0.8595,
@@ -30,7 +30,7 @@
       "roc_auc": 0.8329323159831634,
       "pr_auc": 0.6662327050364837,
       "brier_score": 0.11179390307759592,
-      "train_time_sec": 0.10288763046264648
+      "train_time_sec": 0.5908215045928955
     },
     "threshold_32": {
       "threshold": 0.32,
@@ -63,7 +63,7 @@
       "f1_mean": 0.5346320639625832,
       "f1_std": 0.012238053361554629,
       "brier_mean": 0.11275169703665056,
-      "brier_std": 0.002858935908393224
+      "brier_std": 0.002858935908393219
     },
     "lightgbm": {
       "roc_mean": 0.8329751800403052,

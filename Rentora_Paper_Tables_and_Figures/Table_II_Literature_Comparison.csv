@@ -1,0 +1,7 @@
+Platform Capability,Base Platform [3],Recommender Study [4],Churn Study [5],Rentora (Our Work)
+Online Booking and Checkout,Yes,Partial,No,Yes
+Personalized Recommender,No,Yes,No,Yes
+Machine Learning Churn Scoring,No,No,Yes,Yes
+Feature-Level Explainability (XAI),No,Partial,Partial,Yes
+New User / Item Cold-Start,No,Partial,No,Yes
+All Integrated in One System,No,No,No,Yes

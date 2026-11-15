@@ -1,0 +1,9 @@
+Subsystem / Capability,Baseline Framework [3],Rentora (Our Work)
+User Roles & Interfaces,Single user view with basic checkout,"Three dedicated portals: Customer, Appliance Owner, Admin"
+Customer Identity Checks (KYC),Manual photo upload,Client-side WebAssembly OCR (Tesseract.js) with local masking
+Rental Billing & Deposit Ledger,Basic payment mock script,Software escrow ledger with optional damage protection waiver
+Inventory Concurrency Handling,Standard read-then-write,MongoDB atomic conditional decrements preventing overselling
+Live Order Status Tracking,Manual database polling,Real-time bi-directional WebSockets via Socket.io
+Catalog Recommendations,None (static lists),"Hybrid: TF-IDF text matching, co-rental graph, Bayesian ratings, budget fit"
+Customer Churn-Risk Prediction,None,Genuine LightGBM ensemble with 5-fold CV & significance tests
+Model Interpretability (XAI),None,Local and global TreeSHAP attributions in raw log-odds margins

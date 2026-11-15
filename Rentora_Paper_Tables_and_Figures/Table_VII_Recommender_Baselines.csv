@@ -1,0 +1,5 @@
+Method Architecture,Sub-P@5,Sub-R@5,Sub-NDCG@5,Hit Rate@5,Room-P@5,Room-NDCG@5
+Random Baseline,0.036,0.023,0.035,0.173,0.17,0.162
+Popularity Baseline,0.044,0.031,0.041,0.222,0.164,0.174
+Content-Only (TF-IDF),0.527,0.46,0.598,0.858,0.697,0.721
+Full Hybrid (Rentora),0.412,0.317,0.45,0.778,0.752,0.79

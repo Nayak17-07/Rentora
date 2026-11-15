@@ -1,0 +1,16 @@
+Feature Name,Source Bank Feature,Transformation / Mapping Formula,Empirical Range,Operational Interpretation
+tenure_months,"Tenure, Age","(Tenure * 12 + Age % 12).clip(1, 120)",1–120 mo,"Total relationship duration in months (clipped to [1, 120])"
+monthly_spend,"Balance, EstimatedSalary",Balance/100 + EstimatedSalary/500,"₹2.25–₹5,349.27",Estimated monthly rental subscription expenditure
+active_rentals,NumOfProducts,Direct copy of NumOfProducts,1–4 units,Number of appliance units currently on active lease
+credit_score,CreditScore,Direct copy of CreditScore,350–850,Financial creditworthiness indicator
+customer_age,Age,Direct copy of Age,18–92 yrs,Customer age in completed years
+is_active_member,IsActiveMember,Direct copy of IsActiveMember,"{0, 1}",Active platform engagement flag (1 = active member)
+late_payments,"NumOfProducts, HasCrCard",NumOfProducts * (1 - HasCrCard) + (10 - Tenure)/3,0–5 events,Count of late rental payments (integer clipped)
+early_returns,"HasCrCard, IsActiveMember",(1 - HasCrCard) + (1 - IsActiveMember),0–2 events,Instances of early appliance return before lease maturity
+cart_abandonment,"NumOfProducts, IsActiveMember",2*(1 - IsActiveMember) + 2*I(NumOfProducts == 1),"{0, 2, 4}",Browse-and-abandon events based on inactivity and single rental
+days_inactive,"Tenure, IsActiveMember",(10 - Tenure)*3.5 + (1 - IsActiveMember)*20,0.0–55.0 days,Days elapsed since the customer's last platform interaction
+avg_rating,"CreditScore, HasCrCard",1.0 + (CreditScore/850)*3.0 + HasCrCard*1.0,2.60–5.00 ★,Average satisfaction rating given by customer
+spend_per_rental,"monthly_spend, active_rentals","monthly_spend / max(active_rentals, 1)","₹1.07–₹4,862.97",Average monthly expenditure per active appliance unit
+delinquency_rate,Derived,"late_payments / max(active_rentals, 1)",0.00–2.50,Payment delinquency frequency per active rental
+inactivity_rate,Derived,days_inactive / (tenure_months + 1),0.00–1.77,Ratio of recent inactive days to overall account tenure
+engagement_score,"avg_rating, days_inactive","avg_rating * (1.0 - clip(days_inactive/90, 0, 1))",1.011–5.000,Composite customer platform engagement and satisfaction index

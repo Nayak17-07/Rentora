@@ -1,0 +1,7 @@
+Component Configuration,Room-P@5,Room-R@5,Room-NDCG@5,Room-Hit Rate@5
+Full Hybrid (Rentora),0.752,0.134,0.79,0.979
+w/o Room Synergy (s = 0),0.314,0.057,0.338,0.772
+w/o Rating Prior (q = 0),0.796,0.143,0.833,0.966
+w/o Eco-Bonus (e = 0),0.988,0.177,0.988,1.0
+w/o Budget Fit (pi = 0),0.646,0.112,0.687,0.91
+Pure Content-Only (TF-IDF),0.697,0.124,0.721,0.959

@@ -1,0 +1,4 @@
+Model Architecture,Accuracy,Precision,Recall,F1-Score,ROC-AUC,PR-AUC,Brier Score
+Logistic Regression,0.733,0.411,0.722,0.524,0.822,0.596,0.17
+Random Forest Baseline,0.852,0.741,0.415,0.532,0.819,0.643,0.114
+Genuine LightGBM (Ours),0.86,0.727,0.496,0.59,0.833,0.666,0.112
