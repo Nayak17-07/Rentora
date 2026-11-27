@@ -81,9 +81,6 @@ export const AssuranceBanner = () => {
               <div 
                 key={idx}
                 className={b.isAction ? 'assurance-pillar assurance-pillar-action' : 'assurance-pillar'}
-                onClick={() => {
-                  if (b.isAction && onOpenUNLMTD) onOpenUNLMTD();
-                }}
                 style={{
                   background: b.isAction ? 'rgba(239, 68, 68, 0.08)' : 'var(--surface-muted)',
                   border: b.isAction ? '1.5px solid rgba(239, 68, 68, 0.35)' : '1px solid var(--border-color)',

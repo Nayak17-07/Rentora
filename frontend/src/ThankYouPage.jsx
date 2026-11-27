@@ -74,7 +74,7 @@ const ThankYouPage = () => {
           )}
           <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center', flexWrap: 'wrap' }}>
             <Link
-              to="/my-rentals"
+              to="/rentals"
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',

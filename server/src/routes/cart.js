@@ -39,6 +39,11 @@ router.get('/cart/', authenticateJWT, async (req, res) => {
 // POST /api/cart/
 router.post('/cart/', authenticateJWT, async (req, res) => {
   try {
+    if (req.user.role === 'admin') {
+      return res.status(403).json({
+        error: 'Administrator accounts cannot place customer rental orders. Please use a customer account.'
+      });
+    }
     const db = getDb();
     const userId = req.user.id;
     const { appliance_id, tenure, bundle_data } = req.body || {};

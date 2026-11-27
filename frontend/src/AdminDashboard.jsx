@@ -22,7 +22,6 @@ import {
   Package,
   Boxes,
   Lock,
-  ArrowLeft,
   ShieldCheck,
   FileText,
   Download,
@@ -35,7 +34,7 @@ import {
   Clock
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { fetchWithAuth, getApiUrl } from './utils/api';
+import { fetchWithAuth } from './utils/api';
 import ThemeToggle from './ThemeToggle';
 import { getSocket, joinAdminRoom } from './utils/socket';
 
@@ -622,8 +621,27 @@ const AdminDashboard = ({ onLogout }) => {
     }
   };
 
-  const handleExportCSV = (type) => {
-    window.open(getApiUrl(`/api/admin/export/?type=${type}`), '_blank');
+  const handleExportCSV = async (type) => {
+    try {
+      const res = await fetchWithAuth(`/api/admin/export/?type=${encodeURIComponent(type)}`);
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        showToast.error(errData.error || `Failed to export ${type} CSV`, 'Export Failed');
+        return;
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `rentora_${type}_export.csv`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('CSV export error:', err);
+      showToast.error('Network error while exporting CSV', 'Export Failed');
+    }
   };
 
   if (loading) {
@@ -815,10 +833,7 @@ const AdminDashboard = ({ onLogout }) => {
           <div style={{ marginTop: '1.5rem', paddingTop: '1.25rem', borderTop: '1px solid #f1f5f9' }}>
             <button
               type="button"
-              onClick={() => {
-                localStorage.setItem('user_role', 'customer');
-                navigate('/');
-              }}
+              onClick={handleLogout}
               style={{
                 background: 'transparent',
                 border: 'none',
@@ -833,8 +848,8 @@ const AdminDashboard = ({ onLogout }) => {
               onMouseOver={(e) => { e.currentTarget.style.color = '#0f172a'; }}
               onMouseOut={(e) => { e.currentTarget.style.color = '#64748b'; }}
             >
-              <ArrowLeft size={14} />
-              <span>Return to Customer Storefront</span>
+              <LogOut size={14} />
+              <span>Sign Out & Switch Account</span>
             </button>
           </div>
         </div>
@@ -911,17 +926,21 @@ const AdminDashboard = ({ onLogout }) => {
               <span>{socketConnected ? 'Live Socket Active' : 'Connecting...'}</span>
             </div>
 
-            <button
-              onClick={() => {
-                localStorage.setItem('user_role', 'customer');
-                navigate('/');
-              }}
-              className="nav-action-btn"
-              title="Return to consumer storefront"
-            >
-              <ArrowLeft size={15} />
-              <span>Consumer Storefront</span>
-            </button>
+            <div style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '0.35rem',
+              padding: '0.35rem 0.7rem',
+              borderRadius: '8px',
+              background: 'rgba(124, 58, 237, 0.1)',
+              border: '1px solid rgba(124, 58, 237, 0.25)',
+              color: '#7c3aed',
+              fontSize: '0.75rem',
+              fontWeight: 700
+            }}>
+              <Lock size={13} />
+              <span>Staff Ops · Isolated</span>
+            </div>
 
             <ThemeToggle />
 
@@ -1728,6 +1747,21 @@ const AdminDashboard = ({ onLogout }) => {
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
                 <button
                   type="button"
+                  onClick={handleTriggerLateFeeScanner}
+                  disabled={lateFeeScanning}
+                  style={{
+                    background: '#fffbeb', color: '#b45309', border: '1px solid #fde68a', padding: '0.5rem 0.95rem',
+                    borderRadius: '8px', fontSize: '0.8rem', fontWeight: 700, cursor: lateFeeScanning ? 'wait' : 'pointer',
+                    display: 'flex', alignItems: 'center', gap: '0.45rem',
+                    opacity: lateFeeScanning ? 0.7 : 1, transition: 'all 0.15s ease'
+                  }}
+                >
+                  <Clock size={14} color="#b45309" />
+                  <span>{lateFeeScanning ? 'Scanning Leases...' : 'Run Late Fee Scan'}</span>
+                </button>
+
+                <button
+                  type="button"
                   onClick={() => handleExportCSV('rentals')}
                   style={{
                     background: '#0f172a', color: '#ffffff', border: 'none', padding: '0.5rem 0.95rem',
@@ -1742,7 +1776,31 @@ const AdminDashboard = ({ onLogout }) => {
                   <span>Export Bookings CSV</span>
                 </button>
 
-{/* Late Fee Execution Banner (Module 12) */}
+                {/* Status Filter buttons */}
+                <div style={{ display: 'flex', gap: '0.4rem', background: '#e2e8f0', padding: '0.25rem', borderRadius: '8px' }}>
+                  {['all', 'active', 'pending_delivery', 'dispatched', 'delivered', 'inactive'].map(st => (
+                    <button
+                      key={st}
+                      onClick={() => setRentalFilter(st)}
+                      style={{
+                        border: 'none',
+                        padding: '0.35rem 0.75rem',
+                        borderRadius: '6px',
+                        fontSize: '0.8rem',
+                        fontWeight: 600,
+                        background: rentalFilter === st ? 'white' : 'transparent',
+                        color: rentalFilter === st ? '#0f172a' : '#64748b',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      {st.replace('_', ' ').toUpperCase()}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Late Fee Execution Banner (Module 12) */}
             {lateFeeResult && (
               <div style={{
                 background: '#fffbeb',
@@ -1776,30 +1834,6 @@ const AdminDashboard = ({ onLogout }) => {
                 </button>
               </div>
             )}
-
-            {/* Status Filter buttons */}
-                <div style={{ display: 'flex', gap: '0.4rem', background: '#e2e8f0', padding: '0.25rem', borderRadius: '8px' }}>
-                  {['all', 'active', 'pending_delivery', 'dispatched', 'delivered', 'inactive'].map(st => (
-                    <button
-                      key={st}
-                      onClick={() => setRentalFilter(st)}
-                      style={{
-                        border: 'none',
-                        padding: '0.35rem 0.75rem',
-                        borderRadius: '6px',
-                        fontSize: '0.8rem',
-                        fontWeight: 600,
-                        background: rentalFilter === st ? 'white' : 'transparent',
-                        color: rentalFilter === st ? '#0f172a' : '#64748b',
-                        cursor: 'pointer'
-                      }}
-                    >
-                      {st.replace('_', ' ').toUpperCase()}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
 
             <div className="panel" style={{ overflow: 'hidden' }}>
               <div style={{ overflowX: 'auto' }}>

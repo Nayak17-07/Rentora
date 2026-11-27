@@ -148,7 +148,7 @@ const OwnerDashboard = ({ onLogout }) => {
       const data = await res.json();
       if (res.ok) {
         showToast.success(data.success || `Booking ${decision}ed`, 'Owner Approval');
-        fetchDashboard();
+        loadDashboard();
       } else {
         showToast.error(data.error || 'Action failed', 'Error');
       }

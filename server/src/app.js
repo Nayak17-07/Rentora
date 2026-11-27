@@ -37,9 +37,12 @@ app.use((req, res, next) => {
   next();
 });
 
-// Bounded In-Memory Rate Limiter for /api (DoS protection)
+// Bounded In-Memory Rate Limiter for /api (DoS protection in production)
 const rateBuckets = new Map();
 app.use('/api', (req, res, next) => {
+  if (process.env.NODE_ENV !== 'production') {
+    return next();
+  }
   const ip = req.ip || req.socket?.remoteAddress || 'unknown';
   const now = Date.now();
   const windowMs = 60 * 1000;

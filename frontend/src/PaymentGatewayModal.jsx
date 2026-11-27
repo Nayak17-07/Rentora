@@ -186,7 +186,7 @@ const PaymentGatewayModal = ({
           prefill: {
             name: customerInfo.name || 'Valued Tenant',
             email: customerInfo.email || 'customer@rentora.com',
-            contact: customerInfo.phone || '9876543210'
+            ...(customerInfo.phone ? { contact: customerInfo.phone } : {})
           },
           notes: {
             address: 'Rentora Doorstep Delivery & Setup',
@@ -228,81 +228,25 @@ const PaymentGatewayModal = ({
    */
   const simulateDirectRazorpayPayment = async (orderData, paymentMethod, paymentDetails) => {
     setStatusMessage('Authenticating with Banking Gateway Node...');
+    const simPaymentId = `pay_${Date.now().toString().slice(-8)}_${Math.random().toString(36).substring(2, 7)}`;
 
-    // Generate simulated payment id and valid signature via backend
-    const fakePaymentId = `pay_${Date.now().toString().slice(-8)}_${Math.random().toString(36).substring(2, 7)}`;
-    
-    setTimeout(async () => {
-      setStatusMessage('Executing Cryptographic Signature Exchange...');
-
-      try {
-        // Generate an HMAC test signature matching the backend's secret
-        const secret = 'rentora_razorpay_secret_key_2026';
-        
-        // We will call the backend verify-signature with the test payment ID
-        // The backend supports standard cryptographic verification
-        // Create an encoder for HMAC
-        const encoder = new TextEncoder();
-        const keyData = encoder.encode(secret);
-        const cryptoKey = await window.crypto.subtle.importKey(
-          'raw',
-          keyData,
-          { name: 'HMAC', hash: 'SHA-256' },
-          false,
-          ['sign']
-        );
-        const dataToSign = encoder.encode(`${orderData.order_id}|${fakePaymentId}`);
-        const signatureBuffer = await window.crypto.subtle.sign('HMAC', cryptoKey, dataToSign);
-        const hashArray = Array.from(new Uint8Array(signatureBuffer));
-        const fakeSignature = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-
-        const verifyRes = await verifyRazorpayPayment({
-          razorpay_order_id: orderData.order_id,
-          razorpay_payment_id: fakePaymentId,
-          razorpay_signature: fakeSignature
-        });
-
-        if (verifyRes.verified) {
-          setStage('success');
-          setStatusMessage('Payment Authorized & Cryptographically Signed!');
-
-          setTimeout(() => {
-            onPaymentSuccess({
-              payment_method: paymentMethod,
-              auto_debit_enabled: autoDebitEnabled,
-              payment_details: {
-                ...paymentDetails,
-                razorpay_order_id: orderData.order_id,
-                razorpay_payment_id: fakePaymentId,
-                razorpay_signature: fakeSignature,
-                auto_debit_enabled: autoDebitEnabled,
-                verified: true
-              }
-            });
-          }, 1200);
-        } else {
-          setStage('input');
-          setErrorMessage('Payment verification could not be validated.');
-        }
-      } catch (e) {
-        console.warn('Fallback simulated direct signature flow error:', e);
-        // Direct graceful bypass for sandbox tests
-        setStage('success');
-        setStatusMessage('Payment Authorized & Verified!');
-        setTimeout(() => {
-          onPaymentSuccess({
-            payment_method: paymentMethod,
+    setTimeout(() => {
+      setStage('success');
+      setStatusMessage('Payment Authorized & Verified!');
+      setTimeout(() => {
+        onPaymentSuccess({
+          payment_method: paymentMethod,
+          is_simulation: true,
+          auto_debit_enabled: autoDebitEnabled,
+          payment_details: {
+            ...paymentDetails,
+            razorpay_order_id: orderData.order_id,
+            razorpay_payment_id: simPaymentId,
             auto_debit_enabled: autoDebitEnabled,
-            payment_details: {
-              ...paymentDetails,
-              razorpay_order_id: orderData.order_id,
-              razorpay_payment_id: fakePaymentId,
-              auto_debit_enabled: autoDebitEnabled,
-              verified: true
-            }
-          });
-        }, 1200);
-      }
+            verified: true
+          }
+        });
+      }, 1200);
     }, 1200);
   };
 

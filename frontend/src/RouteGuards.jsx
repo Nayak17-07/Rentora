@@ -9,6 +9,7 @@ import { Navigate, useLocation } from 'react-router-dom';
  */
 export const ProtectedRoute = ({ children }) => {
   const token = localStorage.getItem('access_token');
+  const currentRole = localStorage.getItem('user_role');
   const location = useLocation();
 
   if (!token) {
@@ -19,6 +20,9 @@ export const ProtectedRoute = ({ children }) => {
         state={{ from: location }}
       />
     );
+  }
+  if (currentRole === 'admin') {
+    return <Navigate to="/admin" replace />;
   }
   return children;
 };
@@ -60,7 +64,10 @@ export const RoleRoute = ({ children, role }) => {
  */
 export const GuestRoute = ({ children }) => {
   const token = localStorage.getItem('access_token');
+  const currentRole = localStorage.getItem('user_role');
   if (token) {
+    if (currentRole === 'admin') return <Navigate to="/admin" replace />;
+    if (currentRole === 'owner') return <Navigate to="/owner" replace />;
     return <Navigate to="/" replace />;
   }
   return children;

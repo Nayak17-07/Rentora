@@ -44,10 +44,31 @@ const LoginPage = ({ onLogin }) => {
         throw new Error(data.detail || data.error || 'Invalid credentials');
       }
       
+      const role = data.user?.role || 'customer';
       localStorage.setItem('access_token', data.access);
       localStorage.setItem('refresh_token', data.refresh);
+      localStorage.setItem('user_role', role);
+      if (role === 'owner') {
+        localStorage.setItem('is_owner', 'true');
+      } else {
+        localStorage.removeItem('is_owner');
+      }
+      if (data.user?.username) {
+        localStorage.setItem('username', data.user.username);
+      }
+      if (data.user) {
+        localStorage.setItem('user', JSON.stringify(data.user));
+      }
+
       onLogin(data.access);
-      navigate('/');
+
+      if (role === 'admin') {
+        navigate('/admin', { replace: true });
+      } else if (role === 'owner') {
+        navigate('/owner', { replace: true });
+      } else {
+        navigate('/', { replace: true });
+      }
     } catch (err) {
       setError(err.message);
     } finally {

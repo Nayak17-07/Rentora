@@ -91,6 +91,8 @@ const CartPage = ({ onLogout }) => {
   const [companionRecs, setCompanionRecs] = useState([]);
 
   const [addingCompanionId, setAddingCompanionId] = useState(null);
+  const [loyaltyPoints, setLoyaltyPoints] = useState(0);
+  const [redeemLoyalty, setRedeemLoyalty] = useState(false);
 
 
 
@@ -452,6 +454,14 @@ const CartPage = ({ onLogout }) => {
       const kyc = await fetchUserKycAddress();
       await fetchSavedAddresses();
       fetchCompanionRecs();
+      fetchWithAuth('/api/auth/me/')
+        .then(r => (r.ok ? r.json() : null))
+        .then(u => {
+          if (u && typeof u.loyalty_points === 'number') {
+            setLoyaltyPoints(Math.max(0, Math.floor(u.loyalty_points)));
+          }
+        })
+        .catch(() => {});
 
       const params = new URLSearchParams(window.location.search);
       if (params.get('openPayment') === 'true' || params.get('checkout') === 'true') {
@@ -851,9 +861,8 @@ const CartPage = ({ onLogout }) => {
           ...paymentPayload,
 
           rentora_care: rentoraCare,
-
           rentora_care_fee: rentoraCareFee,
-
+          redeem_points: pointsToRedeem,
           digital_agreement: digitalAgreement,
 
           delivery_address: {
@@ -988,7 +997,9 @@ const CartPage = ({ onLogout }) => {
 
     : 0;
 
-  const totalDue = Math.max(0, totalMonthly + totalDeposit + totalTax + rentoraCareFee - couponDiscount);
+  const preLoyaltyTotal = Math.max(0, totalMonthly + totalDeposit + totalTax + rentoraCareFee - couponDiscount);
+  const pointsToRedeem = redeemLoyalty ? Math.min(loyaltyPoints, Math.floor(preLoyaltyTotal)) : 0;
+  const totalDue = Math.max(0, preLoyaltyTotal - pointsToRedeem);
 
 
 
@@ -2649,15 +2660,52 @@ const CartPage = ({ onLogout }) => {
               )}
 
               {appliedCoupon && (
-
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.85rem', color: '#059669', fontSize: '0.9rem', fontWeight: 600 }}>
-
                   <span>Coupon Discount ({appliedCoupon.code})</span>
-
                   <span>-₹{couponDiscount.toLocaleString('en-IN')}</span>
-
                 </div>
+              )}
 
+              {/* Loyalty Points Redemption */}
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '0.7rem 0.85rem',
+                borderRadius: '10px',
+                background: loyaltyPoints > 0 ? '#fffbeb' : 'var(--surface-muted, #f8fafc)',
+                border: `1px solid ${loyaltyPoints > 0 ? '#fde68a' : 'var(--border-color)'}`,
+                marginBottom: '0.85rem',
+                fontSize: '0.84rem'
+              }}>
+                <div>
+                  <div style={{ fontWeight: 700, color: loyaltyPoints > 0 ? '#92400e' : 'var(--text-primary)' }}>
+                    ⭐ Loyalty Points ({loyaltyPoints.toLocaleString('en-IN')} pts)
+                  </div>
+                  <div style={{ fontSize: '0.74rem', color: loyaltyPoints > 0 ? '#b45309' : 'var(--text-secondary)' }}>
+                    {loyaltyPoints > 0
+                      ? `Redeem up to ₹${Math.min(loyaltyPoints, Math.floor(preLoyaltyTotal)).toLocaleString('en-IN')} (1 pt = ₹1)`
+                      : `Earn +${Math.floor(totalDue / 100)} pts on this order`}
+                  </div>
+                </div>
+                {loyaltyPoints > 0 && (
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', cursor: 'pointer', fontWeight: 700, color: '#92400e' }}>
+                    <input
+                      type="checkbox"
+                      checked={redeemLoyalty}
+                      onChange={(e) => setRedeemLoyalty(e.target.checked)}
+                      style={{ accentColor: '#d97706', width: '16px', height: '16px', cursor: 'pointer' }}
+                    />
+                    <span>Apply</span>
+                  </label>
+                )}
+              </div>
+
+              {redeemLoyalty && pointsToRedeem > 0 && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.85rem', color: '#059669', fontSize: '0.9rem', fontWeight: 600 }}>
+                  <span>Loyalty Points Redeemed ({pointsToRedeem} pts)</span>
+                  <span>-₹{pointsToRedeem.toLocaleString('en-IN')}</span>
+                </div>
               )}
 
 
@@ -2839,7 +2887,7 @@ const CartPage = ({ onLogout }) => {
 
           email: kycData?.email || '',
 
-          phone: deliveryAddress.phone || ''
+          phone: deliveryAddress.phone || kycData?.phone_num || ''
 
         }}
 
