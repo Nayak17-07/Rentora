@@ -20,17 +20,26 @@ router.get('/admin/dashboard/', async (req, res) => {
       activeRentals,
       flaggedUsers,
       pendingVerifications,
-      allRentals
+      allRentals,
+      atRiskScores
     ] = await Promise.all([
       db.collection('users').countDocuments({}),
       db.collection('rentals').countDocuments({}),
       db.collection('rentals').countDocuments({ status: 'active' }),
       db.collection('users').countDocuments({ is_flagged: true }),
       db.collection('kyc').countDocuments({ status: { $in: ['pending', 'in_review'] } }),
-      db.collection('rentals').find({}, { projection: { amount_paid: 1 } }).toArray()
+      db.collection('rentals').find({}, { projection: { amount_paid: 1 } }).toArray(),
+      db.collection('user_churn_scores').find({ churn_risk_score: { $gte: 0.25 } }).sort({ churn_risk_score: -1 }).limit(25).toArray()
     ]);
 
     const totalRevenue = allRentals.reduce((sum, r) => sum + (parseFloat(r.amount_paid) || 0), 0);
+    const atRiskData = atRiskScores.map(score => ({
+      username: score.username || 'Unknown',
+      email: score.email || '',
+      churn_risk_score: parseFloat(score.churn_risk_score || 0),
+      shap_reason: score.shap_reason || 'Risk factors detected',
+      last_updated: score.last_updated
+    }));
 
     return res.status(200).json({
       total_users: totalUsers,
@@ -38,7 +47,8 @@ router.get('/admin/dashboard/', async (req, res) => {
       active_rentals: activeRentals,
       total_revenue: totalRevenue,
       flagged_users: flaggedUsers,
-      pending_verifications: pendingVerifications
+      pending_verifications: pendingVerifications,
+      at_risk_customers: atRiskData
     });
   } catch (err) {
     console.error('Admin dashboard error:', err);
@@ -834,6 +844,47 @@ router.get(['/admin/bi-analytics/', '/admin/business-intelligence/'], async (req
 
 let isChurnJobRunning = false;
 
+// POST /api/admin/ml/recompute-churn (LightGBM & TreeSHAP Churn Prediction Pipeline)
+router.post('/admin/ml/recompute-churn', authenticateJWT, requireRole('admin'), async (req, res) => {
+  if (isChurnJobRunning) {
+    return res.status(409).json({ error: 'Churn prediction pipeline is already running in background.', status: 'RUNNING' });
+  }
+  isChurnJobRunning = true;
+  const { runPythonScript } = require('../utils/pythonRunner');
+  runPythonScript('ml_pipeline/etl_pipeline.py', [], 90000)
+    .then(() => { isChurnJobRunning = false; })
+    .catch(() => { isChurnJobRunning = false; });
+
+  return res.status(202).json({
+    success: true,
+    message: 'LightGBM Churn & TreeSHAP Pipeline started in background.',
+    status: 'ACCEPTED'
+  });
+});
+
+// GET /api/admin/ml/churn-stats
+router.get('/admin/ml/churn-stats', async (req, res) => {
+  try {
+    const db = getDb();
+    const all = await db.collection('user_churn_scores').find({}).toArray();
+    const highRisk = all.filter(u => (u.churn_risk_score || 0) >= 0.70);
+    const medRisk = all.filter(u => (u.churn_risk_score || 0) >= 0.40 && (u.churn_risk_score || 0) < 0.70);
+    const lowRisk = all.filter(u => (u.churn_risk_score || 0) < 0.40);
+    const avgScore = all.length > 0 ? (all.reduce((acc, u) => acc + (u.churn_risk_score || 0), 0) / all.length).toFixed(3) : 0;
+
+    return res.status(200).json({
+      total_analyzed: all.length,
+      high_risk_count: highRisk.length,
+      medium_risk_count: medRisk.length,
+      low_risk_count: lowRisk.length,
+      average_churn_probability: parseFloat(avgScore),
+      model_type: 'LightGBM Classifier + TreeSHAP Explainability'
+    });
+  } catch (err) {
+    return res.status(500).json({ error: 'Failed to fetch ML churn statistics' });
+  }
+});
+
 module.exports = router;
 
 
@@ -935,6 +986,47 @@ router.post('/admin/customers/:id/retention-perk', authenticateJWT, requireRole(
   } catch (err) {
     console.error('Retention perk error:', err);
     return res.status(500).json({ error: 'Failed to dispatch retention perk' });
+  }
+});
+
+// POST /api/admin/ml/recompute-churn (LightGBM & TreeSHAP Churn Prediction Pipeline)
+router.post('/admin/ml/recompute-churn', authenticateJWT, requireRole('admin'), async (req, res) => {
+  if (isChurnJobRunning) {
+    return res.status(409).json({ error: 'Churn prediction pipeline is already running in background.', status: 'RUNNING' });
+  }
+  isChurnJobRunning = true;
+  const { runPythonScript } = require('../utils/pythonRunner');
+  runPythonScript('ml_pipeline/etl_pipeline.py', [], 90000)
+    .then(() => { isChurnJobRunning = false; })
+    .catch(() => { isChurnJobRunning = false; });
+
+  return res.status(202).json({
+    success: true,
+    message: 'LightGBM Churn & TreeSHAP Pipeline started in background.',
+    status: 'ACCEPTED'
+  });
+});
+
+// GET /api/admin/ml/churn-stats
+router.get('/admin/ml/churn-stats', async (req, res) => {
+  try {
+    const db = getDb();
+    const all = await db.collection('user_churn_scores').find({}).toArray();
+    const highRisk = all.filter(u => (u.churn_risk_score || 0) >= 0.70);
+    const medRisk = all.filter(u => (u.churn_risk_score || 0) >= 0.40 && (u.churn_risk_score || 0) < 0.70);
+    const lowRisk = all.filter(u => (u.churn_risk_score || 0) < 0.40);
+    const avgScore = all.length > 0 ? (all.reduce((acc, u) => acc + (u.churn_risk_score || 0), 0) / all.length).toFixed(3) : 0;
+
+    return res.status(200).json({
+      total_analyzed: all.length,
+      high_risk_count: highRisk.length,
+      medium_risk_count: medRisk.length,
+      low_risk_count: lowRisk.length,
+      average_churn_probability: parseFloat(avgScore),
+      model_type: 'LightGBM Classifier + TreeSHAP Explainability'
+    });
+  } catch (err) {
+    return res.status(500).json({ error: 'Failed to fetch ML churn statistics' });
   }
 });
 

@@ -33,6 +33,16 @@ function ProductDetailsModal({ appliance, onClose, onAddToCart }) {
           }
         })
         .catch(err => console.error("Error fetching reviews:", err));
+
+      // Fetch Companion Recommendations for this appliance
+      publicFetch(`/api/recommendations/?appliance_id=${appId}&filter=room_bundles`)
+        .then(res => res.json())
+        .then(data => {
+          if (Array.isArray(data)) {
+            setPairedAccessories(data.slice(0, 3));
+          }
+        })
+        .catch(err => console.error("Error fetching paired accessories:", err));
     }
   }, [appliance]);
 

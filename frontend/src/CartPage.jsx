@@ -384,7 +384,16 @@ const CartPage = ({ onLogout }) => {
   };
 
   const fetchCompanionRecs = async () => {
-    setCompanionRecs([]);
+    try {
+      const city = deliveryAddress.city || localStorage.getItem('rentora_city') || 'Bangalore';
+      const res = await fetchWithAuth(`/api/recommendations/?filter=room_bundles&city=${encodeURIComponent(city)}`);
+      if (res.ok) {
+        const data = await res.json();
+        setCompanionRecs(data);
+      }
+    } catch (e) {
+      console.error('Error fetching companion recommendations:', e);
+    }
   };
 
 

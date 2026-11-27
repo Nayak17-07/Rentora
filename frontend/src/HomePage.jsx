@@ -292,6 +292,22 @@ const HomePage = ({ onLogout }) => {
     
     setLoading(true);
     try {
+      // Recommendations (Content-Based & Hybrid Engine)
+      const cityQuery = selectedCity ? `&city=${encodeURIComponent(selectedCity)}` : '';
+      let recRes = null;
+      if (token) {
+        try {
+          recRes = await fetchWithAuth(`/api/recommendations/?filter=${activeRecFilter}${cityQuery}`);
+        } catch (e) {}
+      }
+      if (!recRes || !recRes.ok) {
+        recRes = await publicFetch(`/api/recommendations/?filter=${activeRecFilter}${cityQuery}`).catch(() => null);
+      }
+      if (recRes && recRes.ok) {
+        const recData = await recRes.json().catch(() => []);
+        setRecommendations(Array.isArray(recData) ? recData : []);
+      }
+
       // Catalog (Multi-Host Fallback: localhost -> 127.0.0.1 -> Vite proxy)
       const catCityQuery = selectedCity ? `?city=${encodeURIComponent(selectedCity)}` : '';
       let appRes = null;
@@ -1748,6 +1764,88 @@ const HomePage = ({ onLogout }) => {
 
       {/* CURATED ROOM COMBOS */}
       <CuratedRoomCombos onRentCombo={handleRentCombo} />
+
+      {/* ========================================================
+          5. PERSONALIZED RECOMMENDATIONS (TF-IDF & HYBRID ENGINE)
+          ======================================================== */}
+      {recommendations.length > 0 && (
+        <section style={{ maxWidth: '1280px', margin: '3rem auto 0', padding: '0 1.5rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.35rem' }}>
+                <div style={{ background: 'var(--primary-glow)', padding: '0.4rem', borderRadius: '8px' }}>
+                  <Sparkles size={20} color="var(--primary-color)" />
+                </div>
+                <h2 style={{ fontSize: '1.6rem', fontWeight: 800, margin: 0, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
+                  Recommended For You
+                </h2>
+              </div>
+              <p style={{ color: 'var(--text-secondary)', fontSize: '0.88rem', margin: 0 }}>
+                Personalized appliance suggestions in <strong>{city}</strong> powered by TF-IDF &amp; co-rental matching.
+              </p>
+            </div>
+            <div style={{ display: 'flex', background: 'var(--surface-muted)', border: '1px solid var(--border-color)', padding: '0.25rem', borderRadius: '10px', gap: '0.35rem', flexWrap: 'wrap' }}>
+              {[
+                { id: 'for_you', label: '🌟 For You' },
+                { id: 'room_bundles', label: '🛋️ Room Combos' },
+                { id: 'trending', label: `📍 Popular in ${city}` }
+              ].map(tab => (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => fetchFilteredRecommendations(tab.id)}
+                  style={{
+                    background: activeRecFilter === tab.id ? 'var(--surface-color)' : 'transparent',
+                    color: activeRecFilter === tab.id ? 'var(--text-primary)' : 'var(--text-secondary)',
+                    border: activeRecFilter === tab.id ? '1px solid var(--border-color)' : '1px solid transparent',
+                    padding: '0.45rem 0.8rem', borderRadius: '8px', fontSize: '0.8rem', fontWeight: 700, cursor: 'pointer'
+                  }}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '1.25rem' }}>
+            {recommendations.slice(0, 8).map((rec, idx) => {
+              const app = rec.recommended_appliance_details;
+              if (!app) return null;
+              const appId = app.appliance_id || app._id;
+              const isAdded = addedItems[appId];
+              return (
+                <div
+                  key={rec.recommendation_id || idx}
+                  onClick={() => setSelectedProduct(app)}
+                  className="product-card panel"
+                  style={{ background: 'var(--surface-color)', border: '1px solid var(--border-color)', borderRadius: '16px', overflow: 'hidden', cursor: 'pointer', display: 'flex', flexDirection: 'column' }}
+                >
+                  <div style={{ height: '180px', background: 'var(--surface-muted)', position: 'relative' }}>
+                    <span style={{ position: 'absolute', top: '10px', left: '10px', background: '#0284c7', color: '#fff', fontSize: '0.72rem', fontWeight: 800, padding: '0.2rem 0.55rem', borderRadius: '6px' }}>
+                      {rec.match_percentage || Math.round((rec.similarity_score || 0.85) * 100)}% Match
+                    </span>
+                    <img src={app.image_url} alt={app.rental_name} style={{ width: '100%', height: '100%', objectFit: 'contain', padding: '0.5rem' }} />
+                  </div>
+                  <div style={{ padding: '1rem', display: 'flex', flexDirection: 'column', flex: 1 }}>
+                    <h3 style={{ fontSize: '0.95rem', fontWeight: 700, margin: '0 0 0.4rem', color: 'var(--text-primary)' }}>{app.rental_name}</h3>
+                    <p style={{ fontSize: '0.76rem', color: 'var(--text-secondary)', margin: '0 0 0.75rem' }}>{rec.recommendation_reason}</p>
+                    <div style={{ marginTop: 'auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontWeight: 900, fontSize: '1.1rem', color: 'var(--text-primary)' }}>₹{app.monthly_price}/mo</span>
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); addToCart(appId, '6', app); }}
+                        style={{ background: isAdded ? '#059669' : '#e23744', color: '#fff', border: 'none', borderRadius: '8px', padding: '0.4rem 0.75rem', fontSize: '0.78rem', fontWeight: 700, cursor: 'pointer' }}
+                      >
+                        {isAdded ? 'Added' : '+ Add'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      )}
 
       {/* ========================================================
           5B. RECENTLY VIEWED APPLIANCES (Browsing History Module)

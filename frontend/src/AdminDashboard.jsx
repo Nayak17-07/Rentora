@@ -1103,6 +1103,76 @@ const AdminDashboard = ({ onLogout }) => {
                 </div>
               </div>
             </section>
+
+            {/* Churn Prediction Radar (LightGBM & TreeSHAP) */}
+            <section className="panel" style={{ padding: 0, overflow: 'hidden', background: 'var(--surface-color)', border: '1px solid var(--border-color)', borderRadius: '16px' }}>
+              <div style={{ padding: '1.25rem 1.5rem', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
+                <div>
+                  <h2 style={{ fontSize: '1.15rem', margin: 0, color: 'var(--text-primary)' }}>Churn Prediction Radar (LightGBM &amp; TreeSHAP)</h2>
+                  <p style={{ color: '#64748b', fontSize: '0.8rem', marginTop: '0.2rem', margin: 0 }}>
+                    Identifies at-risk customers and primary churn drivers so support can send retention offers.
+                  </p>
+                </div>
+                <span style={{ fontSize: '0.75rem', background: '#ecfdf5', color: '#059669', border: '1px solid #a7f3d0', padding: '0.25rem 0.75rem', borderRadius: '999px', fontWeight: 600 }}>
+                  {(dashboardData.at_risk_customers || []).length} Flagged by ML
+                </span>
+              </div>
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+                  <thead>
+                    <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0', color: '#64748b', fontSize: '0.75rem', textTransform: 'uppercase' }}>
+                      <th style={{ padding: '0.85rem 1.5rem' }}>Customer</th>
+                      <th style={{ padding: '0.85rem 1.5rem' }}>Churn Risk</th>
+                      <th style={{ padding: '0.85rem 1.5rem' }}>Primary Driver (SHAP)</th>
+                      <th style={{ padding: '0.85rem 1.5rem', textAlign: 'right' }}>Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(dashboardData.at_risk_customers || []).length > 0 ? (
+                      dashboardData.at_risk_customers.map((customer, idx) => (
+                        <tr key={idx} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                          <td style={{ padding: '0.85rem 1.5rem' }}>
+                            <div style={{ fontWeight: 600, color: '#0f172a' }}>{customer.username}</div>
+                            <div style={{ fontSize: '0.75rem', color: '#64748b' }}>{customer.email}</div>
+                          </td>
+                          <td style={{ padding: '0.85rem 1.5rem' }}>
+                            <span style={{
+                              padding: '0.2rem 0.55rem',
+                              borderRadius: '0.5rem',
+                              fontSize: '0.82rem',
+                              fontWeight: 700,
+                              background: customer.churn_risk_score > 0.8 ? '#fef2f2' : '#fff7ed',
+                              color: customer.churn_risk_score > 0.8 ? '#e23744' : '#ea580c'
+                            }}>
+                              {(customer.churn_risk_score * 100).toFixed(1)}%
+                            </span>
+                          </td>
+                          <td style={{ padding: '0.85rem 1.5rem', fontSize: '0.82rem', color: '#334155', maxWidth: '340px' }}>
+                            {customer.shap_reason}
+                          </td>
+                          <td style={{ padding: '0.85rem 1.5rem', textAlign: 'right' }}>
+                            <button
+                              type="button"
+                              onClick={() => handleOfferRetentionPerk(customer)}
+                              className="btn-secondary"
+                              style={{ padding: '0.35rem 0.75rem', fontSize: '0.75rem', cursor: 'pointer' }}
+                            >
+                              Offer 15% Retention Perk
+                            </button>
+                          </td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr>
+                        <td colSpan="4" style={{ padding: '1.5rem', textAlign: 'center', color: '#64748b' }}>
+                          No at-risk customers detected.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </section>
           </div>
         )}
 

@@ -3,6 +3,7 @@ const cors = require('cors');
 
 const authRoutes = require('./routes/auth');
 const appliancesRoutes = require('./routes/appliances');
+const recommendationsRoutes = require('./routes/recommendations');
 const cartRoutes = require('./routes/cart');
 const checkoutRoutes = require('./routes/checkout');
 const rentalsRoutes = require('./routes/rentals');
@@ -58,6 +59,7 @@ app.get(['/', '/api/health', '/api/health/'], (req, res) => {
 // Mount Routes under /api
 app.use('/api', authRoutes);
 app.use('/api', appliancesRoutes);
+app.use('/api', recommendationsRoutes);
 app.use('/api', cartRoutes);
 app.use('/api', checkoutRoutes);
 app.use('/api', rentalsRoutes);
