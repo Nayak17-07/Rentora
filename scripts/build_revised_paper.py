@@ -256,7 +256,7 @@ def build_manuscript(output_docx_path, anonymized=False):
     add_body_p(
         "1. Full-Stack Cloud Architecture: A multi-tenant platform with dedicated portals for customers, appliance owners, and administrators. "
         "We implemented client-side WebAssembly OCR via Tesseract.js [16] to extract masked identity numbers locally in the browser, protecting customer privacy. "
-        "We also integrated atomic MongoDB inventory decrements, an automated escrow ledger with optional damage waivers, and bi-directional WebSocket notifications via Socket.io."
+        "We also integrated atomic MongoDB inventory decrements, a refundable security deposit ledger with optional damage waivers, and bi-directional WebSocket notifications via Socket.io."
     )
     add_body_p(
         "2. Analytical Machine Learning Pipeline: An asynchronous Python pipeline decoupled from the transaction server that evaluates hybrid room-aware recommendations, trains and evaluates gradient-boosted churn classifiers, and generates exact TreeSHAP feature attributions in raw log-odds margins for support staff."
@@ -276,7 +276,7 @@ def build_manuscript(output_docx_path, anonymized=False):
         ["Subsystem / Capability", "Baseline Framework [3]", "Rentora (Our Work)"],
         ["User Roles & Interfaces", "Single user view with basic checkout", "Three dedicated portals: Customer, Appliance Owner, Admin"],
         ["Customer Identity Checks (KYC)", "Manual photo upload", "Client-side WebAssembly OCR (Tesseract.js) with local masking"],
-        ["Rental Billing & Deposit Ledger", "Basic payment mock script", "Software escrow ledger with optional damage protection waiver"],
+        ["Rental Billing & Deposit Ledger", "Basic payment mock script", "Refundable security deposit ledger with optional damage protection waiver"],
         ["Inventory Concurrency Handling", "Standard read-then-write", "MongoDB atomic conditional decrements preventing overselling"],
         ["Live Order Status Tracking", "Manual database polling", "Real-time bi-directional WebSockets via Socket.io"],
         ["Catalog Recommendations", "None (static lists)", "Hybrid: TF-IDF text matching, co-rental graph, Bayesian ratings, budget fit"],
@@ -448,8 +448,8 @@ def build_manuscript(output_docx_path, anonymized=False):
         "This approach protects user privacy: the raw identity image is discarded immediately after extraction, and only the masked identification token and verification status are sent to our backend."
     )
     add_body_p(
-        "API Gateway Tier: The backend runs on Node.js and Express, organized into 15 route modules (including auth, appliances, rentals, cart, payments, kyc, recommendations, and admin). "
-        "All endpoints enforce JSON Web Token (JWT) authentication and role-based access control (RBAC). "
+        "API Gateway Tier: The backend runs on Node.js and Express, organized into 16 route modules (including auth, appliances, rentals, cart, payments, kyc, recommendations, and admin). "
+        "New user sign-up is restricted to @gmail.com addresses verified via 6-digit SMTP OTP, and protected endpoints enforce JSON Web Token (JWT) authentication and role-based access control (RBAC). "
         "For live operational updates, we integrated Socket.io over WebSockets. "
         "When an administrator updates delivery status or an owner accepts an inspection report, the change is pushed instantly to connected customer dashboards without requiring manual browser refreshes."
     )
