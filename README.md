@@ -1,4 +1,4 @@
-# Rentora — AI-Powered Appliance Rental Marketplace
+# Rentora — AI-Powered Appliance Rental Marketplace with Personalized Recommendations and Customer Churn Analytics
 
 [![Node.js](https://img.shields.io/badge/Node.js-v20%2B-green.svg)](https://nodejs.org/)
 [![Express.js](https://img.shields.io/badge/Express.js-v5.2-lightgrey.svg)](https://expressjs.com/)
@@ -38,21 +38,17 @@
 ## System Architecture & Tech Stack
 
 ```
-┌────────────────────────────────────────────────────────┐
-│               React 19 + Vite Frontend SPA             │
-│        (React Router, Lucide Icons, Socket.io)         │
-└──────────────────────────┬─────────────────────────────┘
-                           │ REST API / WebSockets
-┌──────────────────────────▼─────────────────────────────┐
-│             Node.js + Express.js API Server            │
-│   (JWT Auth, RBAC, Gmail OTP, Atomic Mongo Updates)    │
-└──────────────┬───────────────────────────┬─────────────┘
-               │ Native Driver             │ Async Python
-┌──────────────▼────────────┐ ┌────────────▼─────────────┐
-│     MongoDB Database      │ │   Python ML Pipeline     │
-│ (Users, Appliances, Cart, │ │ (LightGBM Churn Model,   │
-│  Rentals, Payments, KYC)  │ │  TreeSHAP, TF-IDF Recs)  │
-└───────────────────────────┘ └──────────────────────────┘
+Rentora
+│
+├── User Authentication (JWT + Gmail OTP)
+├── Product Listings & Search
+├── Rental Management & Security Deposits
+├── Reviews & Ratings
+├── Verification System (Phone, ID Upload, Admin Approval)
+├── Recommendation Engine ⭐ (TF-IDF & Co-Rental Matching)
+├── Churn Prediction ⭐ (LightGBM + TreeSHAP)
+├── Payment System (Razorpay)
+└── Admin Dashboard (5 Core KPIs + Churn Radar)
 ```
 
 * **Frontend**: React 19, Vite 8, React Router 7, Lucide Icons, Socket.io-client.
