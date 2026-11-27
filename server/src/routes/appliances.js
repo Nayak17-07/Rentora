@@ -31,11 +31,12 @@ router.get(['/appliances/', '/appliances/:appliance_id/'], async (req, res) => {
     }
 
     if (city && city !== 'All Cities') {
-      query.available_cities = city;
+      query.available_cities = String(city).slice(0, 64);
     }
 
     if (search) {
-      const escapedSearch = String(search).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const safeSearch = String(search).slice(0, 100);
+      const escapedSearch = safeSearch.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
       query.$or = [
         { rental_name: { $regex: escapedSearch, $options: 'i' } },
         { category_id: { $regex: escapedSearch, $options: 'i' } },

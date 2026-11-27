@@ -3,6 +3,9 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="apple-touch-icon" href="/favicon.svg" />
+    <link rel="manifest" href="/site.webmanifest" />
+    <meta name="theme-color" content="#e23744" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
     <!-- Primary SEO -->
@@ -17,18 +20,37 @@
     <meta property="og:url" content="https://www.rentora.in/" />
     <meta property="og:title" content="Rentora – Smart Furniture &amp; Appliance Rentals" />
     <meta property="og:description" content="Rent premium furniture and appliances across India. Flexible plans, free maintenance, ESG-certified products." />
-    <meta property="og:image" content="https://www.rentora.in/og-image.png" />
+    <meta property="og:image" content="https://www.rentora.in/og-image.svg" />
 
     <!-- Twitter Card -->
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:site" content="@RentoraIndia" />
     <meta name="twitter:title" content="Rentora – Smart Furniture &amp; Appliance Rentals" />
     <meta name="twitter:description" content="Rent premium furniture and appliances across India. Flexible plans, free maintenance." />
-    <meta name="twitter:image" content="https://www.rentora.in/og-image.png" />
+    <meta name="twitter:image" content="https://www.rentora.in/og-image.svg" />
 
     <!-- Preconnect for fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+
+    <!-- Structured Data (JSON-LD) -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "Organization",
+        "name": "Rentora",
+        "url": "https://www.rentora.in",
+        "logo": "https://www.rentora.in/favicon.svg",
+        "address": {
+          "@type": "PostalAddress",
+          "streetAddress": "1st Floor, Oberoi Commerz, Goregaon East",
+          "addressLocality": "Mumbai",
+          "addressRegion": "MH",
+          "postalCode": "400063",
+          "addressCountry": "IN"
+        }
+      }
+    </script>
 
     <!-- Theme: set before React mounts to prevent flash -->
     <script>

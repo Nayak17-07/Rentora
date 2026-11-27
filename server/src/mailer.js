@@ -114,11 +114,15 @@ async function sendOtpEmail(toEmail, otp, type = 'signup') {
     };
   }
 
+  const textContent = `${heading}\n\nYour 6-digit Rentora verification code is: ${otp}\nThis code is valid for 10 minutes. Do not share it with anyone.\n\nIf you did not request this code, you can ignore this email.`;
+
   try {
     const info = await transporter.sendMail({
-      from: `"Rentora Verification" <${process.env.GMAIL_USER}>`,
+      from: `"Rentora" <${process.env.GMAIL_USER}>`,
+      replyTo: process.env.GMAIL_USER,
       to: toEmail,
       subject,
+      text: textContent,
       html: htmlContent
     });
 

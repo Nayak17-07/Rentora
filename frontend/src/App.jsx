@@ -3,8 +3,10 @@ import {
   BrowserRouter as Router,
   Routes,
   Route,
-  Navigate
+  Link,
+  useLocation
 } from 'react-router-dom';
+import { trackPageView } from './utils/analytics';
 
 // ── Lazy-loaded Core pages (On-Demand Code Splitting) ─────────────────────────
 const HomePage         = lazy(() => import('./HomePage'));
@@ -30,8 +32,48 @@ const TermsPage        = lazy(() => import('./LegalPages').then(m => ({ default:
 const PrivacyPage      = lazy(() => import('./LegalPages').then(m => ({ default: m.PrivacyPage })));
 const CookiesPage      = lazy(() => import('./LegalPages').then(m => ({ default: m.CookiesPage })));
 const RefundPolicyPage = lazy(() => import('./LegalPages').then(m => ({ default: m.RefundPolicyPage })));
+const RentalPolicyPage = lazy(() => import('./LegalPages').then(m => ({ default: m.RentalPolicyPage })));
+const OwnerPolicyPage  = lazy(() => import('./LegalPages').then(m => ({ default: m.OwnerPolicyPage })));
 const FAQPage          = lazy(() => import('./LegalPages').then(m => ({ default: m.FAQPage })));
 const ContactPage      = lazy(() => import('./LegalPages').then(m => ({ default: m.ContactPage })));
+const ThankYouPage     = lazy(() => import('./ThankYouPage'));
+import CookieBanner from './CookieBanner';
+
+const RouteAnalyticsTracker = () => {
+  const location = useLocation();
+  useEffect(() => {
+    trackPageView(location.pathname);
+  }, [location.pathname]);
+  return null;
+};
+
+const StickyMobileCta = () => {
+  const location = useLocation();
+  if (location.pathname !== '/') return null;
+  return (
+    <div className="sticky-mobile-cta" role="region" aria-label="Quick mobile rental actions">
+      <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary, #475569)' }}>
+        <strong style={{ display: 'block', color: 'var(--text-primary, #0f172a)' }}>Flexible Appliance Rentals</strong>
+        Verified Renters · Refundable Deposit
+      </div>
+      <Link
+        to="/cart"
+        style={{
+          padding: '0.6rem 1.15rem',
+          borderRadius: 10,
+          background: 'var(--primary-color, #e23744)',
+          color: '#fff',
+          textDecoration: 'none',
+          fontWeight: 700,
+          fontSize: '0.86rem',
+          whiteSpace: 'nowrap'
+        }}
+      >
+        View Cart
+      </Link>
+    </div>
+  );
+};
 
 // ── Route guards ─────────────────────────────────────────────────────────────
 import {
@@ -143,11 +185,14 @@ function App() {
 
             {/* ── Legal & informational pages (public) ─────────────────────── */}
             <Route path="/terms"           element={<TermsPage />} />
+            <Route path="/rental-policy"   element={<RentalPolicyPage />} />
+            <Route path="/owner-policy"    element={<OwnerPolicyPage />} />
             <Route path="/privacy"         element={<PrivacyPage />} />
             <Route path="/cookies"         element={<CookiesPage />} />
             <Route path="/refund-policy"   element={<RefundPolicyPage />} />
             <Route path="/faq"             element={<FAQPage />} />
             <Route path="/contact"         element={<ContactPage />} />
+            <Route path="/thank-you"       element={<ThankYouPage />} />
 
             {/* ── Protected customer routes ─────────────────────────────────── */}
             <Route
@@ -208,6 +253,9 @@ function App() {
           </Routes>
         </Suspense>
 
+        <RouteAnalyticsTracker />
+        <StickyMobileCta />
+        <CookieBanner />
         <ToastContainer />
       </ErrorBoundary>
     </Router>
