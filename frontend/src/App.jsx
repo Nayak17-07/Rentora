@@ -23,7 +23,6 @@ import NotFoundPage       from './NotFoundPage';
 import ForbiddenPage      from './ForbiddenPage';
 import SessionExpiredPage from './SessionExpiredPage';
 import OfflinePage        from './OfflinePage';
-import RentoraConcierge   from './RentoraConcierge';
 import { ToastContainer } from './utils/toast';
 
 // ── Lazy-loaded Legal & Info pages ───────────────────────────────────────────
@@ -209,8 +208,6 @@ function App() {
           </Routes>
         </Suspense>
 
-        {/* Global AI concierge – shown on all pages */}
-        <RentoraConcierge />
         <ToastContainer />
       </ErrorBoundary>
     </Router>

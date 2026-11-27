@@ -2,6 +2,7 @@ const express = require('express');
 const crypto = require('crypto');
 const { getDb } = require('../db');
 const { authenticateJWT, requireRole } = require('../auth');
+const { getUserTrustProfile } = require('../utils/trust');
 
 const router = express.Router();
 
@@ -44,25 +45,34 @@ router.get('/dashboard/', async (req, res) => {
     const monthlyGross = activeRentals.reduce((sum, b) => sum + (parseFloat(b.monthly_rent) || 0), 0);
     const monthlyProjectedPayout = Math.round(monthlyGross * 0.85);
 
-    // Format active bookings with customer info
+    // Format active bookings with customer info & Trust Profile
     const formattedBookings = [];
     for (const b of activeBookings) {
       const user = await db.collection('users').findOne({ _id: b.user_id }, { projection: { password: 0 } });
       const app = myAppliances.find(a => (a.appliance_id || a._id) === b.appliance_id);
+      const renterTrust = await getUserTrustProfile(db, b.user_id);
 
       formattedBookings.push({
         _id: String(b._id),
         rental_id: String(b._id),
+        user_id: b.user_id,
         customer_name: user ? user.username || 'Customer' : 'Customer',
         customer_email: user ? user.email || '' : '',
         appliance_name: app ? app.rental_name : 'Appliance',
         monthly_rent: b.monthly_rent,
+        security_deposit: b.security_deposit || 0,
         owner_share: Math.round((parseFloat(b.monthly_rent) || 0) * 0.85),
         tenure: b.tenure,
         status: b.status,
+        owner_approval: b.owner_approval || { required: false, status: 'auto_approved' },
+        renter_trust: renterTrust,
         rented_at: b.rented_at instanceof Date ? b.rented_at.toISOString() : b.rented_at
       });
     }
+
+    const pendingApprovalsCount = formattedBookings.filter(
+      b => b.status === 'pending_approval' || b.owner_approval?.status === 'pending'
+    ).length;
 
     return res.status(200).json({
       owner: {
@@ -74,6 +84,7 @@ router.get('/dashboard/', async (req, res) => {
       metrics: {
         total_listings: totalListings,
         active_rented_units: activeRentedUnits,
+        pending_approvals: pendingApprovalsCount,
         total_earnings: totalEarnings,
         monthly_projected_payout: monthlyProjectedPayout,
         platform_commission_pct: 15
@@ -369,6 +380,88 @@ router.get('/export/', authenticateJWT, async (req, res) => {
   } catch (err) {
     console.error('Owner export error:', err);
     return res.status(500).json({ error: 'Internal server error exporting ledger' });
+  }
+});
+
+// POST /api/owner/bookings/:rental_id/approve - Owner approves a pending high-value rental request
+router.post('/bookings/:rental_id/approve', async (req, res) => {
+  try {
+    const db = getDb();
+    const rentalId = req.params.rental_id;
+    const rental = await db.collection('rentals').findOne({ _id: rentalId });
+    if (!rental) {
+      return res.status(404).json({ error: 'Rental request not found' });
+    }
+
+    const app = await db.collection('appliances').findOne({
+      $or: [{ appliance_id: rental.appliance_id }, { _id: rental.appliance_id }]
+    });
+    if (req.user.role !== 'admin' && app?.owner_id !== req.user.id && rental.owner_id !== req.user.id) {
+      return res.status(403).json({ error: 'You are not authorized to approve this rental request.' });
+    }
+
+    await db.collection('rentals').updateOne(
+      { _id: rentalId },
+      {
+        $set: {
+          status: 'active',
+          'owner_approval.status': 'approved',
+          'owner_approval.reviewed_by': req.user.id,
+          'owner_approval.reviewed_at': new Date()
+        }
+      }
+    );
+
+    return res.status(200).json({ success: 'Rental request approved! Order is now active.', rental_id: rentalId });
+  } catch (err) {
+    console.error('Owner approve error:', err);
+    return res.status(500).json({ error: 'Failed to approve rental request' });
+  }
+});
+
+// POST /api/owner/bookings/:rental_id/reject - Owner rejects a pending rental request & restores stock
+router.post('/bookings/:rental_id/reject', async (req, res) => {
+  try {
+    const db = getDb();
+    const rentalId = req.params.rental_id;
+    const { reason } = req.body;
+    const rental = await db.collection('rentals').findOne({ _id: rentalId });
+    if (!rental) {
+      return res.status(404).json({ error: 'Rental request not found' });
+    }
+
+    const app = await db.collection('appliances').findOne({
+      $or: [{ appliance_id: rental.appliance_id }, { _id: rental.appliance_id }]
+    });
+    if (req.user.role !== 'admin' && app?.owner_id !== req.user.id && rental.owner_id !== req.user.id) {
+      return res.status(403).json({ error: 'You are not authorized to reject this rental request.' });
+    }
+
+    await db.collection('rentals').updateOne(
+      { _id: rentalId },
+      {
+        $set: {
+          status: 'rejected',
+          deposit_status: 'REFUNDED',
+          'owner_approval.status': 'rejected',
+          'owner_approval.reason': reason || 'Owner declined request after profile review',
+          'owner_approval.reviewed_by': req.user.id,
+          'owner_approval.reviewed_at': new Date()
+        }
+      }
+    );
+
+    if (app) {
+      await db.collection('appliances').updateOne(
+        { _id: app._id },
+        { $inc: { stock_quantity: 1 } }
+      );
+    }
+
+    return res.status(200).json({ success: 'Rental request declined and stock restored.', rental_id: rentalId });
+  } catch (err) {
+    console.error('Owner reject error:', err);
+    return res.status(500).json({ error: 'Failed to reject rental request' });
   }
 });
 

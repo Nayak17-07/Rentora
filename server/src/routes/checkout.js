@@ -417,7 +417,13 @@ router.post('/checkout/', authenticateJWT, async (req, res) => {
         transaction_id: transactionId,
         invoice_number: invoiceNumber,
         payment_method,
-        status: 'active',
+        status: (app?.owner_id || app?.requires_owner_approval || standardDeposit >= 5000) ? 'pending_approval' : 'active',
+        owner_id: app?.owner_id || null,
+        owner_approval: {
+          required: Boolean(app?.owner_id || app?.requires_owner_approval || standardDeposit >= 5000),
+          status: (app?.owner_id || app?.requires_owner_approval || standardDeposit >= 5000) ? 'pending' : 'auto_approved',
+          owner_id: app?.owner_id || null
+        },
         rented_at: now,
         next_billing_date: nextBilling,
                 delivery_address: finalAddress,

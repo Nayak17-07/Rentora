@@ -23,12 +23,15 @@ import { fetchWithAuth } from './utils/api';
 import ThemeToggle from './ThemeToggle';
 
 import { verifyDocumentOcr } from './utils/documentOcr';
+import TrustProfileCard from './TrustProfileCard';
 
 
 
 // ─── Mode Constants ──────────────────────────────────────────────────────────
 
-const MODE_OFFLINE_EKYC = 'offline_ekyc';  // Official UIDAI Offline ZIP / XML (100% Free & Unlimited)
+const MODE_MANUAL_ID    = 'manual_id';     // Simple Manual ID Upload (Admin Reviewed)
+
+const MODE_OFFLINE_EKYC = 'offline_ekyc';  // Official UIDAI Offline ZIP / XML
 
 const MODE_CARD_OCR_OTP = 'card_ocr_otp';  // Card photo OCR + OTP
 
@@ -57,6 +60,7 @@ const KYCPage = () => {
   const [initialLoading, setInitialLoading] = useState(true);
 
   const [kycData, setKycData] = useState(null);
+  const [trustProfile, setTrustProfile] = useState(null);
 
   const [isEditingPending, setIsEditingPending] = useState(false);
 
@@ -64,7 +68,15 @@ const KYCPage = () => {
 
   // ── Selected Mode ─────────────────────────────────────────────────────────
 
-  const [activeMode, setActiveMode] = useState(MODE_OFFLINE_EKYC);
+  const [activeMode, setActiveMode] = useState(MODE_MANUAL_ID);
+
+  // ── Manual ID Upload State ────────────────────────────────────────────────
+  const [manualName, setManualName] = useState('');
+  const [manualIdType, setManualIdType] = useState('Driving License');
+  const [manualIdPreview, setManualIdPreview] = useState('');
+  const [manualSelfiePreview, setManualSelfiePreview] = useState('');
+  const [manualSubmitting, setManualSubmitting] = useState(false);
+  const [manualError, setManualError] = useState('');
 
   const [showHowToGuide, setShowHowToGuide] = useState(false);
 
@@ -170,6 +182,45 @@ const KYCPage = () => {
 
 
 
+  const handleManualFileRead = (file, setter) => {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => setter(String(reader.result || ''));
+    reader.readAsDataURL(file);
+  };
+
+  const handleManualSubmit = async (e) => {
+    e.preventDefault();
+    setManualError('');
+    if (manualName.trim().length < 2) {
+      setManualError('Please enter your full name as shown on your ID.');
+      return;
+    }
+    if (!manualIdPreview) {
+      setManualError('Please upload an image of your Government ID.');
+      return;
+    }
+    setManualSubmitting(true);
+    try {
+      const res = await fetchWithAuth('/api/kyc/manual-upload', {
+        method: 'POST',
+        body: JSON.stringify({
+          full_name: manualName.trim(),
+          id_type: manualIdType,
+          id_proof_base64: manualIdPreview,
+          selfie_base64: manualSelfiePreview || ''
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to submit ID');
+      await fetchKyc();
+    } catch (err) {
+      setManualError(err.message);
+    } finally {
+      setManualSubmitting(false);
+    }
+  };
+
   // ─────────────────────────────────────────────────────────────────────────
 
   // Load existing KYC on mount
@@ -182,14 +233,18 @@ const KYCPage = () => {
 
       setInitialLoading(true);
 
-      const res = await fetchWithAuth('/api/kyc/');
+      const [res, trustRes] = await Promise.all([
+        fetchWithAuth('/api/kyc/'),
+        fetchWithAuth('/api/trust/profile/').catch(() => null)
+      ]);
 
       if (res.ok) {
-
         const data = await res.json();
-
         setKycData(data);
-
+      }
+      if (trustRes && trustRes.ok) {
+        const tData = await trustRes.json().catch(() => null);
+        if (tData) setTrustProfile(tData);
       }
 
     } catch (e) {
@@ -903,7 +958,7 @@ const KYCPage = () => {
 
     return (
 
-      <PageShell>
+      <PageShell trustProfile={trustProfile} onProfileUpdated={setTrustProfile}>
 
         <div style={cardStyle}>
 
@@ -1183,7 +1238,7 @@ const KYCPage = () => {
 
     return (
 
-      <PageShell>
+      <PageShell trustProfile={trustProfile} onProfileUpdated={setTrustProfile}>
 
         <div style={cardStyle}>
 
@@ -1363,7 +1418,7 @@ const KYCPage = () => {
 
   return (
 
-    <PageShell>
+    <PageShell trustProfile={trustProfile} onProfileUpdated={setTrustProfile}>
 
       {initialLoading ? (
 
@@ -1403,93 +1458,94 @@ const KYCPage = () => {
 
             <h1 style={{ fontSize: '1.75rem', fontWeight: 800, color: '#0f172a', margin: '0 0 0.35rem', letterSpacing: '-0.02em' }}>
 
-              Verify Your Tenant Identity
+              Identity Verification
 
             </h1>
 
             <p style={{ color: '#64748b', fontSize: '0.92rem', margin: 0, lineHeight: 1.5 }}>
 
-              Choose official UIDAI Paperless Offline e-KYC or fast Aadhaar card photo with OTP.
+              Upload your Government ID (Aadhaar, Driving License, or Passport) and a Selfie for admin review.
 
             </p>
 
           </div>
 
+          <form onSubmit={handleManualSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.1rem' }}>
+              {manualError && (
+                <div style={{ background: '#fef2f2', borderLeft: '4px solid #ef4444', padding: '0.75rem 1rem', borderRadius: '0.5rem', color: '#b91c1c', fontSize: '0.85rem' }}>
+                  {manualError}
+                </div>
+              )}
 
+              <div>
+                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, color: '#334155', marginBottom: '0.35rem' }}>
+                  Full Name (as on ID)
+                </label>
+                <input
+                  type="text"
+                  value={manualName}
+                  onChange={(e) => setManualName(e.target.value)}
+                  placeholder="Enter your full name"
+                  style={inputStyle}
+                  required
+                />
+              </div>
 
-          {/* MODE SELECTOR TABS */}
+              <div>
+                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, color: '#334155', marginBottom: '0.35rem' }}>
+                  Document Type
+                </label>
+                <select
+                  value={manualIdType}
+                  onChange={(e) => setManualIdType(e.target.value)}
+                  style={inputStyle}
+                >
+                  <option value="Aadhaar Card">Aadhaar Card</option>
+                  <option value="Driving License">Driving License</option>
+                  <option value="Passport">Passport</option>
+                </select>
+              </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '1.75rem', background: '#f1f5f9', padding: '0.375rem', borderRadius: '1rem' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, color: '#334155', marginBottom: '0.35rem' }}>
+                  Government ID Photo *
+                </label>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => handleManualFileRead(e.target.files?.[0], setManualIdPreview)}
+                  required={!manualIdPreview}
+                />
+                {manualIdPreview && (
+                  <img src={manualIdPreview} alt="ID Preview" style={{ marginTop: '0.6rem', maxHeight: '140px', borderRadius: '8px', border: '1px solid #cbd5e1' }} />
+                )}
+              </div>
 
-            <button
+              <div>
+                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, color: '#334155', marginBottom: '0.35rem' }}>
+                  Selfie Holding ID *
+                </label>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => handleManualFileRead(e.target.files?.[0], setManualSelfiePreview)}
+                  required={!manualSelfiePreview}
+                />
+                {manualSelfiePreview && (
+                  <img src={manualSelfiePreview} alt="Selfie Preview" style={{ marginTop: '0.6rem', maxHeight: '140px', borderRadius: '8px', border: '1px solid #cbd5e1' }} />
+                )}
+              </div>
 
-              onClick={() => { setActiveMode(MODE_OFFLINE_EKYC); setOfflineError(''); }}
-
-              style={{
-
-                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem',
-
-                padding: '0.8rem 1rem', borderRadius: '0.75rem', border: 'none',
-
-                background: activeMode === MODE_OFFLINE_EKYC ? '#ffffff' : 'transparent',
-
-                color: activeMode === MODE_OFFLINE_EKYC ? '#0f172a' : '#64748b',
-
-                fontWeight: 700, fontSize: '0.88rem', cursor: 'pointer',
-
-                boxShadow: activeMode === MODE_OFFLINE_EKYC ? '0 4px 12px rgba(0,0,0,0.06)' : 'none',
-
-                transition: 'all 0.2s'
-
-              }}
-
-            >
-
-              <FileArchive size={17} color={activeMode === MODE_OFFLINE_EKYC ? '#ef4444' : '#64748b'} />
-
-              <span>UIDAI Offline e-KYC (ZIP)</span>
-
-              <span style={{ fontSize: '0.68rem', background: '#dcfce7', color: '#15803d', padding: '0.15rem 0.45rem', borderRadius: '999px', fontWeight: 800 }}>
-
-                FREE
-
-              </span>
-
-            </button>
-
-
-
-            <button
-
-              onClick={() => { setActiveMode(MODE_CARD_OCR_OTP); setErrorMessage(''); }}
-
-              style={{
-
-                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem',
-
-                padding: '0.8rem 1rem', borderRadius: '0.75rem', border: 'none',
-
-                background: activeMode === MODE_CARD_OCR_OTP ? '#ffffff' : 'transparent',
-
-                color: activeMode === MODE_CARD_OCR_OTP ? '#0f172a' : '#64748b',
-
-                fontWeight: 700, fontSize: '0.88rem', cursor: 'pointer',
-
-                boxShadow: activeMode === MODE_CARD_OCR_OTP ? '0 4px 12px rgba(0,0,0,0.06)' : 'none',
-
-                transition: 'all 0.2s'
-
-              }}
-
-            >
-
-              <ScanLine size={17} color={activeMode === MODE_CARD_OCR_OTP ? '#ef4444' : '#64748b'} />
-
-              <span>Aadhaar Photo & OTP</span>
-
-            </button>
-
-          </div>
+              <button
+                type="submit"
+                disabled={manualSubmitting}
+                className="btn-primary"
+                style={{ width: '100%', padding: '0.9rem', borderRadius: '0.85rem', fontWeight: 800, fontSize: '0.95rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}
+              >
+                {manualSubmitting ? <Loader2 size={18} className="animate-spin" /> : <ShieldCheck size={18} />}
+                <span>{manualSubmitting ? 'Uploading for Admin Review...' : 'Submit ID & Selfie for Review'}</span>
+              </button>
+          </form>
 
 
 
@@ -2682,7 +2738,7 @@ const StepProgressBar = ({ currentStep }) => {
 
 // ─── Layout wrapper ───────────────────────────────────────────────────────────
 
-const PageShell = ({ children }) => (
+const PageShell = ({ children, trustProfile, onProfileUpdated }) => (
 
   <div style={{ minHeight: '100vh', background: 'linear-gradient(180deg,#f8fafc 0%,#f1f5f9 100%)', display: 'flex', flexDirection: 'column' }}>
 
@@ -2724,10 +2780,13 @@ const PageShell = ({ children }) => (
 
 
 
-    <main style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '2.5rem 1rem' }}>
-
+    <main style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '2.5rem 1rem', gap: '1.5rem' }}>
+      {trustProfile && (
+        <div style={{ maxWidth: '720px', width: '100%' }}>
+          <TrustProfileCard profile={trustProfile} editable={true} onProfileUpdated={onProfileUpdated} />
+        </div>
+      )}
       {children}
-
     </main>
 
 

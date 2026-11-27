@@ -31,31 +31,16 @@ import {
   AlertCircle,
   Sparkles,
   Copy,
-  ExternalLink
+  ExternalLink,
+  Clock
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { fetchWithAuth, getApiUrl } from './utils/api';
 import ThemeToggle from './ThemeToggle';
-import {
-  ResponsiveContainer,
-  AreaChart,
-  Area,
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  Tooltip,
-  CartesianGrid,
-  Cell
-} from 'recharts';
 import { getSocket, joinAdminRoom } from './utils/socket';
-import BusinessIntelligenceTab from './BusinessIntelligenceTab';
-import PredictiveMaintenanceTab from './PredictiveMaintenanceTab';
-import LowStockPredictionView from './LowStockPredictionView';
 
 const AdminDashboard = ({ onLogout }) => {
-  const [activeTab, setActiveTab] = useState('overview'); // 'overview' | 'bi_analytics' | 'inventory' | 'maintenance' | 'users' | 'rentals' | 'complaints'
-  const [inventorySubTab, setInventorySubTab] = useState('catalog'); // 'catalog' | 'predictions'
+  const [activeTab, setActiveTab] = useState('overview'); // 'overview' | 'inventory' | 'users' | 'rentals' | 'complaints' | 'kyc'
   const [socketConnected, setSocketConnected] = useState(false);
   const [liveAlert, setLiveAlert] = useState(null);
 
@@ -953,14 +938,12 @@ const AdminDashboard = ({ onLogout }) => {
         <div style={{ maxWidth: '1360px', margin: '0 auto', padding: '0 1.5rem' }}>
           <div className="dashboard-nav-pills">
             {[
-              { id: 'overview', label: 'Analytics & Churn', icon: TrendingUp },
-              { id: 'bi_analytics', label: 'Executive BI', icon: BarChart2 },
-              { id: 'inventory', label: 'Inventory & Depletion', badge: appliances.length, icon: ShoppingBag },
-              { id: 'maintenance', label: 'Predictive Maintenance', icon: Activity, badgeAlert: true },
-              { id: 'users', label: 'Users & Roles', badge: usersList.length, icon: Users },
-              { id: 'rentals', label: 'Bookings & Dispatch', badge: allRentals.length, icon: PackageCheck },
-              { id: 'complaints', label: 'Support Complaints', badge: complaintsList.filter(c => c.status === 'OPEN').length, icon: MessageSquare, badgeAlert: true },
-              { id: 'kyc', label: 'KYC Moderation', badge: kycStats.pending || kycList.length, icon: ShieldCheck, badgeAlert: kycStats.pending > 0 }
+              { id: 'overview', label: 'Overview', icon: TrendingUp },
+              { id: 'kyc', label: 'Pending Verifications', badge: dashboardData.pending_verifications ?? kycStats.pending ?? 0, icon: ShieldCheck, badgeAlert: (dashboardData.pending_verifications ?? kycStats.pending ?? 0) > 0 },
+              { id: 'users', label: 'Users & Flagged', badge: usersList.length, icon: Users },
+              { id: 'rentals', label: 'Rentals', badge: allRentals.length, icon: PackageCheck },
+              { id: 'inventory', label: 'Inventory', badge: appliances.length, icon: ShoppingBag },
+              { id: 'complaints', label: 'Support', badge: complaintsList.filter(c => c.status === 'OPEN').length, icon: MessageSquare, badgeAlert: true }
             ].map(tab => {
               const Icon = tab.icon;
               const isSelected = activeTab === tab.id;
@@ -1050,9 +1033,9 @@ const AdminDashboard = ({ onLogout }) => {
           <div className="animate-fade-in">
             <div style={{ marginBottom: '2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: '1rem' }}>
               <div>
-                <h1 style={{ fontSize: '1.75rem', marginBottom: '0.35rem', color: 'var(--text-primary)' }}>Enterprise Analytics & Churn Retention</h1>
+                <h1 style={{ fontSize: '1.75rem', marginBottom: '0.35rem', color: 'var(--text-primary)' }}>Admin Operations Overview</h1>
                 <p style={{ color: 'var(--text-secondary)', margin: 0, fontSize: '0.9rem' }}>
-                  Live rental metrics, store sales insights ({sales.appliance_furniture_records ? `${sales.appliance_furniture_records.toLocaleString()} records` : 'active'}), and ML-driven churn predictions.
+                  Core marketplace metrics, user trust verifications, and flagged account moderation.
                 </p>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', flexWrap: 'wrap' }}>
@@ -1060,357 +1043,64 @@ const AdminDashboard = ({ onLogout }) => {
                   type="button"
                   onClick={() => handleExportCSV('rentals')}
                   className="btn-secondary"
-                  style={{
-                    padding: '0.5rem 0.95rem',
-                    borderRadius: '8px',
-                    fontSize: '0.8rem',
-                    fontWeight: 700,
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.45rem'
-                  }}
+                  style={{ padding: '0.5rem 0.95rem', borderRadius: '8px', fontSize: '0.8rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.45rem' }}
                 >
                   <Download size={14} color="#38bdf8" />
                   <span>Export Rentals</span>
                 </button>
-                <button
-                  type="button"
-                  onClick={() => handleExportCSV('financials')}
-                  className="btn-secondary"
-                  style={{
-                    padding: '0.5rem 0.95rem',
-                    borderRadius: '8px',
-                    fontSize: '0.8rem',
-                    fontWeight: 700,
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.45rem'
-                  }}
-                >
-                  <Download size={14} color="#10b981" />
-                  <span>Export Financials</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleExportCSV('churn')}
-                  className="btn-secondary"
-                  style={{
-                    padding: '0.5rem 0.95rem',
-                    borderRadius: '8px',
-                    fontSize: '0.8rem',
-                    fontWeight: 700,
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.45rem'
-                  }}
-                >
-                  <Download size={14} color="#f43f5e" />
-                  <span>Export Churn</span>
-                </button>
-
-                {sales.dataset_name && (
-                  <div style={{ background: 'var(--surface-muted)', border: '1px solid var(--border-color)', padding: '0.45rem 0.8rem', borderRadius: '0.5rem', fontSize: '0.8rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                    <PackageCheck size={14} color="#0284c7" />
-                    Dataset: <strong style={{ color: 'var(--text-primary)' }}>{sales.dataset_name}</strong>
-                  </div>
-                )}
               </div>
             </div>
 
-            {/* Primary Operational KPIs */}
-            <section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.25rem', marginBottom: '2rem' }}>
-              <div className="panel" style={{ padding: '1.25rem', display: 'flex', alignItems: 'center', gap: '1.25rem', background: 'var(--surface-color)', border: '1px solid var(--border-color)', borderRadius: '16px' }}>
-                <div style={{ background: 'rgba(22, 163, 74, 0.12)', padding: '0.75rem', borderRadius: '0.75rem' }}>
-                  <DollarSign size={26} color="#16a34a" />
+            {/* 5 Core Admin KPIs */}
+            <section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1.25rem', marginBottom: '2rem' }}>
+              <div className="panel" style={{ padding: '1.25rem', display: 'flex', alignItems: 'center', gap: '1.15rem', background: 'var(--surface-color)', border: '1px solid var(--border-color)', borderRadius: '16px' }}>
+                <div style={{ background: 'rgba(59, 130, 246, 0.12)', padding: '0.75rem', borderRadius: '0.75rem' }}>
+                  <Users size={24} color="#3b82f6" />
                 </div>
                 <div>
-                  <p style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase', marginBottom: '0.2rem' }}>Gross Rental Revenue</p>
-                  <h3 style={{ fontSize: '1.5rem', margin: 0, color: 'var(--text-primary)' }}>₹{dashboardData.total_revenue.toLocaleString()}</h3>
+                  <p style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', marginBottom: '0.2rem' }}>Total Users</p>
+                  <h3 style={{ fontSize: '1.5rem', margin: 0, color: 'var(--text-primary)' }}>{dashboardData.total_users ?? usersList.length}</h3>
                 </div>
               </div>
 
-              <div className="panel" style={{ padding: '1.25rem', display: 'flex', alignItems: 'center', gap: '1.25rem', background: 'var(--surface-color)', border: '1px solid var(--border-color)', borderRadius: '16px' }}>
+              <div className="panel" style={{ padding: '1.25rem', display: 'flex', alignItems: 'center', gap: '1.15rem', background: 'var(--surface-color)', border: '1px solid var(--border-color)', borderRadius: '16px' }}>
                 <div style={{ background: 'rgba(37, 99, 235, 0.12)', padding: '0.75rem', borderRadius: '0.75rem' }}>
-                  <Package size={26} color="#2563eb" />
+                  <Package size={24} color="#2563eb" />
                 </div>
                 <div>
-                  <p style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase', marginBottom: '0.2rem' }}>Active Customer Leases</p>
-                  <h3 style={{ fontSize: '1.5rem', margin: 0, color: 'var(--text-primary)' }}>{dashboardData.active_rentals}</h3>
+                  <p style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', marginBottom: '0.2rem' }}>Total Rentals</p>
+                  <h3 style={{ fontSize: '1.5rem', margin: 0, color: 'var(--text-primary)' }}>{dashboardData.total_rentals ?? allRentals.length}</h3>
                 </div>
               </div>
 
-              <div className="panel" style={{ padding: '1.25rem', display: 'flex', alignItems: 'center', gap: '1.25rem', background: 'var(--surface-color)', border: '1px solid var(--border-color)', borderRadius: '16px' }}>
+              <div className="panel" style={{ padding: '1.25rem', display: 'flex', alignItems: 'center', gap: '1.15rem', background: 'var(--surface-color)', border: '1px solid var(--border-color)', borderRadius: '16px' }}>
+                <div style={{ background: 'rgba(22, 163, 74, 0.12)', padding: '0.75rem', borderRadius: '0.75rem' }}>
+                  <DollarSign size={24} color="#16a34a" />
+                </div>
+                <div>
+                  <p style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', marginBottom: '0.2rem' }}>Total Revenue</p>
+                  <h3 style={{ fontSize: '1.5rem', margin: 0, color: 'var(--text-primary)' }}>₹{(dashboardData.total_revenue || 0).toLocaleString()}</h3>
+                </div>
+              </div>
+
+              <div onClick={() => setActiveTab('users')} className="panel" style={{ cursor: 'pointer', padding: '1.25rem', display: 'flex', alignItems: 'center', gap: '1.15rem', background: 'var(--surface-color)', border: '1px solid var(--border-color)', borderRadius: '16px' }}>
                 <div style={{ background: 'rgba(226, 55, 68, 0.12)', padding: '0.75rem', borderRadius: '0.75rem' }}>
-                  <AlertTriangle size={26} color="#e23744" />
+                  <AlertTriangle size={24} color="#e23744" />
                 </div>
                 <div>
-                  <p style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase', marginBottom: '0.2rem' }}>At-Risk Churn Profiles</p>
-                  <h3 style={{ fontSize: '1.5rem', margin: 0, color: 'var(--text-primary)' }}>{dashboardData.at_risk_customers.length}</h3>
+                  <p style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', marginBottom: '0.2rem' }}>Flagged Users</p>
+                  <h3 style={{ fontSize: '1.5rem', margin: 0, color: 'var(--text-primary)' }}>{dashboardData.flagged_users ?? usersList.filter(u => u.is_flagged).length}</h3>
                 </div>
               </div>
 
-              <div className="panel" style={{ padding: '1.25rem', display: 'flex', alignItems: 'center', gap: '1.25rem', background: 'var(--surface-color)', border: '1px solid var(--border-color)', borderRadius: '16px' }}>
-                <div style={{ background: 'rgba(147, 51, 234, 0.12)', padding: '0.75rem', borderRadius: '0.75rem' }}>
-                  <TrendingUp size={26} color="#9333ea" />
+              <div onClick={() => setActiveTab('kyc')} className="panel" style={{ cursor: 'pointer', padding: '1.25rem', display: 'flex', alignItems: 'center', gap: '1.15rem', background: 'var(--surface-color)', border: '1px solid var(--border-color)', borderRadius: '16px' }}>
+                <div style={{ background: 'rgba(245, 158, 11, 0.12)', padding: '0.75rem', borderRadius: '0.75rem' }}>
+                  <ShieldCheck size={24} color="#d97706" />
                 </div>
                 <div>
-                  <p style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase', marginBottom: '0.2rem' }}>Market Sales Volume</p>
-                  <h3 style={{ fontSize: '1.5rem', margin: 0, color: 'var(--text-primary)' }}>
-                    {sales.total_sales_volume ? `₹${(sales.total_sales_volume / 10000000).toFixed(1)} Cr` : '₹0'}
-                  </h3>
+                  <p style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', marginBottom: '0.2rem' }}>Pending Verifications</p>
+                  <h3 style={{ fontSize: '1.5rem', margin: 0, color: 'var(--text-primary)' }}>{dashboardData.pending_verifications ?? kycStats.pending ?? 0}</h3>
                 </div>
-              </div>
-            </section>
-
-            {/* Interactive MRR & Category Cashflow Analysis (Executive BI via Recharts) */}
-            <section className="panel" style={{ padding: '1.75rem', marginBottom: '2.5rem', background: 'var(--surface-color)', borderRadius: '16px', border: '1px solid var(--border-color)', boxShadow: 'var(--card-shadow)' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '0.75rem' }}>
-                <div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    <BarChart2 size={20} color="var(--primary-color)" />
-                    <h3 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>
-                      Monthly Recurring Revenue (MRR) & Category Velocity
-                    </h3>
-                  </div>
-                  <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', margin: '0.25rem 0 0' }}>
-                    Live interactive portfolio performance across active leases, auto-renewals, and buyout equity conversions.
-                  </p>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
-                  <span style={{ fontSize: '0.75rem', fontWeight: 700, background: '#ecfdf5', color: '#059669', padding: '0.3rem 0.75rem', borderRadius: '999px', border: '1px solid #a7f3d0' }}>
-                    📈 +24.6% MoM Growth
-                  </span>
-                  <span style={{ fontSize: '0.75rem', fontWeight: 700, background: '#eff6ff', color: '#2563eb', padding: '0.3rem 0.75rem', borderRadius: '999px', border: '1px solid #bfdbfe' }}>
-                    🛡️ Escrow Health: 99.4%
-                  </span>
-                </div>
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: '2rem' }}>
-                {/* 1. Interactive AreaChart (MRR Growth) */}
-                <div style={{ background: '#f8fafc', padding: '1.25rem', borderRadius: '12px', border: '1px solid #edf2f7' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.85rem' }}>
-                    <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#1e293b' }}>
-                      6-Month Revenue Inflow & Lease Trajectory
-                    </span>
-                    <span style={{ fontSize: '0.72rem', color: '#64748b', fontWeight: 600 }}>Hover for telemetry</span>
-                  </div>
-                  <div style={{ width: '100%', height: 240 }}>
-                    <ResponsiveContainer width="100%" height="100%">
-                      <AreaChart data={[
-                        { month: 'May', revenue: 48500, activeRentals: 26 },
-                        { month: 'Jun', revenue: 64200, activeRentals: 35 },
-                        { month: 'Jul', revenue: 82000, activeRentals: 48 },
-                        { month: 'Aug', revenue: 99400, activeRentals: 62 },
-                        { month: 'Sep', revenue: 122800, activeRentals: 74 },
-                        { month: 'Oct (Live)', revenue: Math.max(148500, dashboardData.total_revenue), activeRentals: Math.max(85, dashboardData.active_rentals) }
-                      ]} margin={{ top: 10, right: 10, left: -15, bottom: 0 }}>
-                        <defs>
-                          <linearGradient id="mrrGlow" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%" stopColor="#e23744" stopOpacity={0.4} />
-                            <stop offset="95%" stopColor="#e23744" stopOpacity={0.0} />
-                          </linearGradient>
-                        </defs>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
-                        <XAxis dataKey="month" stroke="#94a3b8" fontSize={11} tickLine={false} />
-                        <YAxis stroke="#94a3b8" fontSize={11} tickLine={false} tickFormatter={(v) => `₹${(v / 1000).toFixed(0)}k`} />
-                        <Tooltip
-                          formatter={(value, name) => [
-                            name === 'revenue' ? `₹${Number(value).toLocaleString()}` : value,
-                            name === 'revenue' ? 'Monthly Revenue' : 'Active Contracts'
-                          ]}
-                          contentStyle={{ backgroundColor: '#0f172a', borderRadius: '8px', border: 'none', color: '#fff', fontSize: '0.8rem' }}
-                        />
-                        <Area type="monotone" dataKey="revenue" stroke="#e23744" strokeWidth={2.5} fillOpacity={1} fill="url(#mrrGlow)" />
-                      </AreaChart>
-                    </ResponsiveContainer>
-                  </div>
-                </div>
-
-                {/* 2. Interactive BarChart (Category Revenue Share) */}
-                <div style={{ background: '#f8fafc', padding: '1.25rem', borderRadius: '12px', border: '1px solid #edf2f7' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.85rem' }}>
-                    <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#1e293b' }}>
-                      Revenue Contribution by Asset Class
-                    </span>
-                    <span style={{ fontSize: '0.72rem', color: '#64748b', fontWeight: 600 }}>Rentora Fleet</span>
-                  </div>
-                  <div style={{ width: '100%', height: 240 }}>
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={[
-                        { category: 'Cooling/Fridges', revenue: 58000, color: '#e23744' },
-                        { category: 'Washers', revenue: 38500, color: '#6366f1' },
-                        { category: 'Sofas/Living', revenue: 29000, color: '#0284c7' },
-                        { category: 'Smart LED TVs', revenue: 16500, color: '#10b981' },
-                        { category: 'Purifiers', revenue: 9500, color: '#f59e0b' }
-                      ]} margin={{ top: 10, right: 10, left: -15, bottom: 0 }}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
-                        <XAxis dataKey="category" stroke="#94a3b8" fontSize={10} tickLine={false} interval={0} />
-                        <YAxis stroke="#94a3b8" fontSize={11} tickLine={false} tickFormatter={(v) => `₹${(v / 1000).toFixed(0)}k`} />
-                        <Tooltip
-                          formatter={(v) => [`₹${Number(v).toLocaleString()}`, 'Monthly Inflow']}
-                          contentStyle={{ backgroundColor: '#0f172a', borderRadius: '8px', border: 'none', color: '#fff', fontSize: '0.8rem' }}
-                        />
-                        <Bar dataKey="revenue" radius={[6, 6, 0, 0]}>
-                          {[
-                            { color: '#e23744' },
-                            { color: '#6366f1' },
-                            { color: '#0284c7' },
-                            { color: '#10b981' },
-                            { color: '#f59e0b' }
-                          ].map((entry, index) => (
-                            <Cell key={`cell-${index}`} fill={entry.color} />
-                          ))}
-                        </Bar>
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </div>
-                </div>
-              </div>
-
-              {/* 3. Churn Risk Score Distribution (LightGBM) & Regional Sales Benchmarks */}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: '2rem', marginTop: '1.5rem' }}>
-                <div style={{ background: '#f8fafc', padding: '1.25rem', borderRadius: '12px', border: '1px solid #edf2f7' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.85rem' }}>
-                    <div>
-                      <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#1e293b' }}>
-                        Customer Churn Probability Spectrum (LightGBM)
-                      </span>
-                      <p style={{ margin: 0, fontSize: '0.72rem', color: '#64748b' }}>Risk segmentation across active user profiles</p>
-                    </div>
-                    <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#b91c1c', background: '#fee2e2', padding: '0.2rem 0.55rem', borderRadius: '999px' }}>
-                      AI Model 1
-                    </span>
-                  </div>
-                  <div style={{ width: '100%', height: 190 }}>
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={[
-                        { tier: 'Low (<30%)', count: Math.max(16, usersList.length - dashboardData.at_risk_customers.length), color: '#10b981' },
-                        { tier: 'Moderate (30-50%)', count: Math.max(3, dashboardData.at_risk_customers.filter(c => c.churn_risk_score <= 0.65).length), color: '#f59e0b' },
-                        { tier: 'High (50-80%)', count: Math.max(4, dashboardData.at_risk_customers.filter(c => c.churn_risk_score > 0.65 && c.churn_risk_score <= 0.85).length), color: '#ea580c' },
-                        { tier: 'Critical (>80%)', count: Math.max(3, dashboardData.at_risk_customers.filter(c => c.churn_risk_score > 0.85).length), color: '#e23744' }
-                      ]} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
-                        <XAxis dataKey="tier" stroke="#94a3b8" fontSize={10} tickLine={false} />
-                        <YAxis stroke="#94a3b8" fontSize={11} tickLine={false} allowDecimals={false} />
-                        <Tooltip
-                          formatter={(v) => [`${v} Users`, 'Cohort Size']}
-                          contentStyle={{ backgroundColor: '#0f172a', borderRadius: '8px', border: 'none', color: '#fff', fontSize: '0.8rem' }}
-                        />
-                        <Bar dataKey="count" radius={[6, 6, 0, 0]}>
-                          {[
-                            { color: '#10b981' },
-                            { color: '#f59e0b' },
-                            { color: '#ea580c' },
-                            { color: '#e23744' }
-                          ].map((entry, index) => (
-                            <Cell key={`churn-cell-${index}`} fill={entry.color} />
-                          ))}
-                        </Bar>
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </div>
-                </div>
-
-                <div style={{ background: '#f8fafc', padding: '1.25rem', borderRadius: '12px', border: '1px solid #edf2f7' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.85rem' }}>
-                    <div>
-                      <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#1e293b' }}>
-                        Regional Retail Benchmark (Store Sales 100k Dataset)
-                      </span>
-                      <p style={{ margin: 0, fontSize: '0.72rem', color: '#64748b' }}>Sales volume vs Net profit by city tier (in ₹ Lakhs)</p>
-                    </div>
-                    <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#0369a1', background: '#e0f2fe', padding: '0.2rem 0.55rem', borderRadius: '999px' }}>
-                      Retail Intel
-                    </span>
-                  </div>
-                  <div style={{ width: '100%', height: 190 }}>
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={[
-                        { tier: 'Tier 1 Metro', sales: 485, profit: 82 },
-                        { tier: 'Tier 2 Emerging', sales: 260, profit: 36 },
-                        { tier: 'Tier 3 Regional', sales: 110, profit: 14 }
-                      ]} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
-                        <XAxis dataKey="tier" stroke="#94a3b8" fontSize={10} tickLine={false} />
-                        <YAxis stroke="#94a3b8" fontSize={11} tickLine={false} tickFormatter={(v) => `₹${v}L`} />
-                        <Tooltip
-                          formatter={(v, name) => [`₹${v} Lakhs`, name === 'sales' ? 'Gross Sales' : 'Net Margin']}
-                          contentStyle={{ backgroundColor: '#0f172a', borderRadius: '8px', border: 'none', color: '#fff', fontSize: '0.8rem' }}
-                        />
-                        <Bar dataKey="sales" name="sales" fill="#3b82f6" radius={[4, 4, 0, 0]} />
-                        <Bar dataKey="profit" name="profit" fill="#10b981" radius={[4, 4, 0, 0]} />
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </div>
-                </div>
-              </div>
-            </section>
-
-            {/* High Churn Risk Customers Table (LightGBM + SHAP) */}
-            <section className="panel" style={{ overflow: 'hidden', marginBottom: '2.5rem' }}>
-              <div style={{ padding: '1.25rem 1.75rem', borderBottom: '1px solid #e2e8f0', background: '#f8fafc', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div>
-                  <h2 style={{ fontSize: '1.15rem', margin: 0, color: '#0f172a' }}>High Churn Risk Customers (LightGBM & SHAP Insights)</h2>
-                  <p style={{ color: '#64748b', fontSize: '0.8rem', marginTop: '0.2rem', margin: 0 }}>Predictive customer retention scores automatically extracted from behavioral telemetry.</p>
-                </div>
-                <span style={{ fontSize: '0.75rem', background: '#fee2e2', color: '#b91c1c', padding: '0.25rem 0.65rem', borderRadius: '1rem', fontWeight: 700 }}>
-                  AI Model 1 Active
-                </span>
-              </div>
-
-              <div style={{ overflowX: 'auto' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
-                  <thead>
-                    <tr style={{ background: 'white', borderBottom: '1px solid #e2e8f0' }}>
-                      <th style={{ padding: '0.85rem 1.5rem', fontWeight: 600, color: '#64748b', fontSize: '0.8rem' }}>Customer Profile</th>
-                      <th style={{ padding: '0.85rem 1.5rem', fontWeight: 600, color: '#64748b', fontSize: '0.8rem' }}>Churn Probability</th>
-                      <th style={{ padding: '0.85rem 1.5rem', fontWeight: 600, color: '#64748b', fontSize: '0.8rem' }}>SHAP Explainability Reason</th>
-                      <th style={{ padding: '0.85rem 1.5rem', fontWeight: 600, color: '#64748b', fontSize: '0.8rem' }}>Retention Action</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {dashboardData.at_risk_customers.length > 0 ? (
-                      dashboardData.at_risk_customers.map((customer, idx) => (
-                        <tr key={idx} style={{ borderBottom: '1px solid #e2e8f0', background: idx % 2 === 0 ? 'white' : '#f8fafc', fontSize: '0.85rem' }}>
-                          <td style={{ padding: '0.85rem 1.5rem' }}>
-                            <div style={{ fontWeight: 600, color: '#0f172a' }}>{customer.username}</div>
-                            <div style={{ fontSize: '0.75rem', color: '#64748b' }}>{customer.email}</div>
-                          </td>
-                          <td style={{ padding: '0.85rem 1.5rem' }}>
-                            <div style={{
-                              display: 'inline-flex', alignItems: 'center',
-                              background: customer.churn_risk_score > 0.8 ? '#fef2f2' : '#fff7ed',
-                              color: customer.churn_risk_score > 0.8 ? '#e23744' : '#ea580c',
-                              padding: '0.2rem 0.65rem', borderRadius: '1rem', fontWeight: 700, fontSize: '0.8rem'
-                            }}>
-                              {(customer.churn_risk_score * 100).toFixed(1)}%
-                            </div>
-                          </td>
-                          <td style={{ padding: '0.85rem 1.5rem', color: '#475569' }}>
-                            {customer.shap_reason}
-                          </td>
-                          <td style={{ padding: '0.85rem 1.5rem' }}>
-                            <button 
-                              type="button"
-                              onClick={() => handleOfferRetentionPerk(customer)}
-                              className="btn-secondary" 
-                              style={{ padding: '0.35rem 0.75rem', fontSize: '0.75rem', cursor: 'pointer' }}
-                            >
-                              Offer 15% Retention Perk
-                            </button>
-                          </td>
-                        </tr>
-                      ))
-                    ) : (
-                      <tr>
-                        <td colSpan="4" style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
-                          No customers currently at high risk. Platform health is optimal.
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
               </div>
             </section>
           </div>
@@ -1421,53 +1111,6 @@ const AdminDashboard = ({ onLogout }) => {
         {/* ========================================================================= */}
         {activeTab === 'inventory' && (
           <div className="animate-fade-in">
-            {/* Sub-view Switcher: Catalog vs ML Depletion Forecast */}
-            <div style={{ display: 'flex', gap: '0.65rem', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
-              <button
-                type="button"
-                onClick={() => setInventorySubTab('catalog')}
-                style={{
-                  padding: '0.55rem 1.15rem',
-                  borderRadius: '10px',
-                  border: inventorySubTab === 'catalog' ? '2px solid #2563eb' : '1px solid #cbd5e1',
-                  background: inventorySubTab === 'catalog' ? '#eff6ff' : '#ffffff',
-                  color: inventorySubTab === 'catalog' ? '#1d4ed8' : '#64748b',
-                  fontWeight: 700,
-                  fontSize: '0.85rem',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.45rem'
-                }}
-              >
-                <ShoppingBag size={16} />
-                <span>Physical Catalog & Stock Steppers</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setInventorySubTab('predictions')}
-                style={{
-                  padding: '0.55rem 1.15rem',
-                  borderRadius: '10px',
-                  border: inventorySubTab === 'predictions' ? '2px solid #6366f1' : '1px solid #cbd5e1',
-                  background: inventorySubTab === 'predictions' ? '#eef2ff' : '#ffffff',
-                  color: inventorySubTab === 'predictions' ? '#4338ca' : '#64748b',
-                  fontWeight: 700,
-                  fontSize: '0.85rem',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.45rem'
-                }}
-              >
-                <Sparkles size={16} color="#6366f1" />
-                <span>AI Low-Stock Depletion Predictor (ML)</span>
-              </button>
-            </div>
-
-            {inventorySubTab === 'predictions' ? (
-              <LowStockPredictionView onStockUpdated={fetchInventory} />
-            ) : (
               <div>
                 {/* Header with Search and Actions */}
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
@@ -1875,7 +1518,6 @@ const AdminDashboard = ({ onLogout }) => {
               </div>
             </div>
           </div>
-        )}
       </div>
     )}
 
@@ -2557,20 +2199,6 @@ const AdminDashboard = ({ onLogout }) => {
           </div>
         )}
 
-        {/* ========================================================================= */}
-        {/* TAB 7: BUSINESS INTELLIGENCE (BI) SUITE */}
-        {/* ========================================================================= */}
-        {activeTab === 'bi_analytics' && (
-          <BusinessIntelligenceTab onExport={handleExportCSV} />
-        )}
-
-        {/* ========================================================================= */}
-        {/* TAB 8: PREDICTIVE MAINTENANCE & FLEET TELEMETRY (Module 13 ML) */}
-        {/* ========================================================================= */}
-        {activeTab === 'maintenance' && (
-          <PredictiveMaintenanceTab />
-        )}
-
       </main>
 
       {/* ========================================================================= */}
@@ -2990,7 +2618,7 @@ const AdminDashboard = ({ onLogout }) => {
 
               <div style={{ border: '1px solid #e2e8f0', borderRadius: '10px', padding: '0.75rem', textAlign: 'center' }}>
                 <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#334155', display: 'block', marginBottom: '0.5rem' }}>
-                  Address Proof (Utility Bill)
+                  {inspectingKyc.address_proof_name === 'Selfie_With_ID.jpg' ? 'Selfie Holding ID' : 'Address Proof / Selfie'}
                 </span>
                 {inspectingKyc.address_proof_preview && (inspectingKyc.address_proof_preview.startsWith('http') || inspectingKyc.address_proof_preview.startsWith('/') || inspectingKyc.address_proof_preview.startsWith('data:')) && !inspectingKyc.address_proof_preview.startsWith('mock_url_') ? (
                   <div>

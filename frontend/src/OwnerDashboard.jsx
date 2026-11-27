@@ -21,6 +21,7 @@ import {
 import { getSocket, joinOwnerRoom } from './utils/socket';
 import { downloadCsv } from './utils/exportCsv';
 import ThemeToggle from './ThemeToggle';
+import TrustProfileCard from './TrustProfileCard';
 
 const OwnerDashboard = ({ onLogout }) => {
   const navigate = useNavigate();
@@ -137,6 +138,24 @@ const OwnerDashboard = ({ onLogout }) => {
       return () => clearTimeout(timer);
     }
   }, [liveAlert]);
+
+  const handleBookingDecision = async (rentalId, decision) => {
+    try {
+      const res = await fetchWithAuth(`/api/owner/bookings/${rentalId}/${decision}`, {
+        method: 'POST',
+        body: JSON.stringify({ reason: decision === 'reject' ? 'Declined after reviewing renter Trust Profile' : '' })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        showToast.success(data.success || `Booking ${decision}ed`, 'Owner Approval');
+        fetchDashboard();
+      } else {
+        showToast.error(data.error || 'Action failed', 'Error');
+      }
+    } catch (err) {
+      showToast.error('Network error processing approval', 'Error');
+    }
+  };
 
   const handleOpenAdd = () => {
     setEditingAppliance(null);
@@ -914,12 +933,38 @@ const OwnerDashboard = ({ onLogout }) => {
                         <td style={{ padding: '1rem 1.25rem', fontWeight: 700, color: '#0f172a' }}>
                           {b.appliance_name}
                         </td>
-                        <td style={{ padding: '1rem 1.25rem', color: '#334155' }}>
-                          <div>{b.customer_name}</div>
-                          <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>{b.customer_email}</div>
+                        <td style={{ padding: '1rem 1.25rem', color: '#334155', minWidth: '240px' }}>
+                          <div style={{ fontWeight: 700 }}>{b.customer_name}</div>
+                          <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginBottom: '0.35rem' }}>{b.customer_email}</div>
+                          {b.renter_trust && (
+                            <div style={{
+                              background: '#f8fafc',
+                              border: '1px solid #e2e8f0',
+                              borderRadius: '8px',
+                              padding: '0.4rem 0.6rem',
+                              fontSize: '0.72rem'
+                            }}>
+                              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.2rem' }}>
+                                <span style={{ fontWeight: 800, color: '#0f172a' }}>
+                                  Trust Score: <span style={{ color: b.renter_trust.trust_score >= 75 ? '#059669' : '#d97706' }}>{b.renter_trust.trust_score}/100</span>
+                                </span>
+                                {b.renter_trust.verifications?.phone_verified && (
+                                  <span style={{ background: '#ecfdf5', color: '#047857', padding: '1px 5px', borderRadius: '4px', fontWeight: 700 }}>
+                                    Phone Verified ✓
+                                  </span>
+                                )}
+                              </div>
+                              <div style={{ color: '#64748b' }}>
+                                Joined {b.renter_trust.joined_at} • {b.renter_trust.stats?.rentals_completed ?? 0} completed • {b.renter_trust.stats?.avg_rating ? `${b.renter_trust.stats.avg_rating}★` : 'New'}
+                              </div>
+                            </div>
+                          )}
                         </td>
                         <td style={{ padding: '1rem 1.25rem', color: '#64748b' }}>
-                          ₹{b.monthly_rent}
+                          <div>₹{b.monthly_rent}</div>
+                          {b.security_deposit > 0 && (
+                            <div style={{ fontSize: '0.72rem', color: '#059669', fontWeight: 700 }}>Deposit: ₹{b.security_deposit}</div>
+                          )}
                         </td>
                         <td style={{ padding: '1rem 1.25rem', fontWeight: 800, color: '#10b981' }}>
                           ₹{b.owner_share}/mo
@@ -929,16 +974,36 @@ const OwnerDashboard = ({ onLogout }) => {
                         </td>
                         <td style={{ padding: '1rem 1.25rem' }}>
                           <span style={{
-                            background: b.status === 'active' ? '#ecfdf5' : '#f1f5f9',
-                            color: b.status === 'active' ? '#059669' : '#64748b',
+                            background: b.status === 'active' ? '#ecfdf5' : b.status === 'pending_approval' ? '#fef3c7' : b.status === 'rejected' ? '#fef2f2' : '#f1f5f9',
+                            color: b.status === 'active' ? '#059669' : b.status === 'pending_approval' ? '#b45309' : b.status === 'rejected' ? '#dc2626' : '#64748b',
                             padding: '0.2rem 0.55rem',
                             borderRadius: '6px',
                             fontWeight: 700,
                             fontSize: '0.75rem',
-                            textTransform: 'uppercase'
+                            textTransform: 'uppercase',
+                            display: 'inline-block',
+                            marginBottom: b.status === 'pending_approval' ? '0.4rem' : 0
                           }}>
-                            {b.status}
+                            {b.status === 'pending_approval' ? 'Pending Approval' : b.status}
                           </span>
+                          {b.status === 'pending_approval' && (
+                            <div style={{ display: 'flex', gap: '0.35rem' }}>
+                              <button
+                                type="button"
+                                onClick={() => handleBookingDecision(b.rental_id || b._id, 'approve')}
+                                style={{ background: '#10b981', color: '#fff', border: 'none', borderRadius: '5px', padding: '0.25rem 0.5rem', fontSize: '0.72rem', fontWeight: 700, cursor: 'pointer' }}
+                              >
+                                Approve
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleBookingDecision(b.rental_id || b._id, 'reject')}
+                                style={{ background: '#ef4444', color: '#fff', border: 'none', borderRadius: '5px', padding: '0.25rem 0.5rem', fontSize: '0.72rem', fontWeight: 700, cursor: 'pointer' }}
+                              >
+                                Reject
+                              </button>
+                            </div>
+                          )}
                         </td>
                         <td style={{ padding: '1rem 1.25rem', color: '#64748b', fontSize: '0.8rem' }}>
                           {b.rented_at ? new Date(b.rented_at).toLocaleDateString() : 'Recent'}

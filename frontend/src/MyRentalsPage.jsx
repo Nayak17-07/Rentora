@@ -41,8 +41,10 @@ import DeliveryTrackerModal from './DeliveryTrackerModal';
 import RentToOwnModal from './RentToOwnModal';
 import DigitalLeaseAgreementModal from './DigitalLeaseAgreementModal';
 import PaymentGatewayModal from './PaymentGatewayModal';
+import TrustProfileCard from './TrustProfileCard';
 
 const MyRentalsPage = ({ onLogout }) => {
+  const [trustProfile, setTrustProfile] = useState(null);
   const [rentals, setRentals] = useState([]);
   const [payments, setPayments] = useState([]);
   const [complaints, setComplaints] = useState([]);
@@ -105,12 +107,17 @@ const MyRentalsPage = ({ onLogout }) => {
 
   const fetchRentalsAndPayments = async () => {
     try {
-      const [resRentals, resPayments, resCatalog, resComplaints] = await Promise.all([
+      const [resRentals, resPayments, resCatalog, resComplaints, resTrust] = await Promise.all([
         fetchWithAuth('/api/rentals/'),
         fetchWithAuth('/api/payments/'),
         fetchWithAuth('/api/appliances/'),
-        fetchWithAuth('/api/complaints/')
+        fetchWithAuth('/api/complaints/'),
+        fetchWithAuth('/api/trust/profile/').catch(() => null)
       ]);
+      if (resTrust && resTrust.ok) {
+        const tData = await resTrust.json().catch(() => null);
+        if (tData) setTrustProfile(tData);
+      }
       if (resRentals.ok) {
         const data = await resRentals.json();
         setRentals(data);
@@ -808,6 +815,16 @@ const MyRentalsPage = ({ onLogout }) => {
       </header>
 
       <main style={{ maxWidth: '1200px', margin: '2.5rem auto 0', padding: '0 1.5rem' }}>
+        {trustProfile && (
+          <div style={{ marginBottom: '1.75rem' }}>
+            <TrustProfileCard
+              profile={trustProfile}
+              editable={true}
+              compact={true}
+              onProfileUpdated={setTrustProfile}
+            />
+          </div>
+        )}
         
         {/* Refund Success Alert Banner */}
         {refundSuccess && (

@@ -1,38 +1,37 @@
 import React from 'react';
-import { Truck, Wrench, RefreshCw, ShieldCheck, Zap, Sparkles, Award } from 'lucide-react';
+import { ShieldCheck, Award, UserCheck, Lock, Star } from 'lucide-react';
 
-export const AssuranceBanner = ({ onOpenUNLMTD }) => {
+export const AssuranceBanner = () => {
   const benefits = [
     {
-      icon: Sparkles,
-      title: "UNLMTD Subscriptions",
-      subtitle: "Furnish your entire 1 BHK or 2 BHK for one flat monthly price with 0 security deposit and annual style upgrades.",
-      tag: "Rentora Signature",
-      isAction: true
+      icon: UserCheck,
+      title: "Multi-Level Verification",
+      subtitle: "Email OTP, Phone, and Government ID checks ensure every renter and owner is accountable.",
+      tag: "3-Step Trust"
     },
     {
-      icon: RefreshCw,
-      title: "Experience Swap",
-      subtitle: "Bored of your decor? Swap any furniture piece for a fresh aesthetic anytime with zero cancellation penalty.",
-      tag: "Free Style Refresh"
+      icon: Award,
+      title: "Dynamic Trust Score",
+      subtitle: "Transparent 0–100 Trust Score built from verifications, completed rentals, and peer reviews.",
+      tag: "Reputation First"
+    },
+    {
+      icon: Lock,
+      title: "Refundable Security Deposits",
+      subtitle: "High-value items are protected with clear refundable security deposits settled upon safe return.",
+      tag: "Risk Protection"
     },
     {
       icon: ShieldCheck,
-      title: "₹10,000 Damage Waiver",
-      subtitle: "Accidental spills, pet scratches, or minor tears? Our Rentora Shield covers up to ₹10,000 with ₹0 deduction.",
-      tag: "Zero Anxiety"
+      title: "Owner Approval Workflow",
+      subtitle: "Owners review renter Trust Score & rental history before approving high-value product bookings.",
+      tag: "Owner Control"
     },
     {
-      icon: Zap,
-      title: "72-Hour Express Setup",
-      subtitle: "Delivered and professionally assembled in your home within 72 hours by certified Rentora service technicians.",
-      tag: "Express Logistics"
-    },
-    {
-      icon: Truck,
-      title: "Free Intercity Relocation",
-      subtitle: "Relocating between cities? We dismantle, pack, transport, and reinstall your rented items completely free.",
-      tag: "5 Major Metros"
+      icon: Star,
+      title: "Verified Reviews & History",
+      subtitle: "Owners see completed rentals, peer ratings, and verification badges before approving bookings.",
+      tag: "Proven Track Record"
     }
   ];
 

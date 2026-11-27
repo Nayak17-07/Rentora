@@ -3,7 +3,6 @@ const cors = require('cors');
 
 const authRoutes = require('./routes/auth');
 const appliancesRoutes = require('./routes/appliances');
-const recommendationsRoutes = require('./routes/recommendations');
 const cartRoutes = require('./routes/cart');
 const checkoutRoutes = require('./routes/checkout');
 const rentalsRoutes = require('./routes/rentals');
@@ -13,10 +12,9 @@ const adminRoutes = require('./routes/admin');
 const ownerRoutes = require('./routes/owner');
 const feedbackRoutes = require('./routes/feedback');
 const addressesRoutes = require('./routes/addresses');
-const conciergeRoutes = require('./routes/concierge');
 const inventoryRoutes = require('./routes/inventory');
 const browsingHistoryRoutes = require('./routes/browsingHistory');
-const maintenanceRoutes = require('./routes/maintenance');
+const trustRoutes = require('./routes/trust');
 
 const app = express();
 
@@ -60,7 +58,6 @@ app.get(['/', '/api/health', '/api/health/'], (req, res) => {
 // Mount Routes under /api
 app.use('/api', authRoutes);
 app.use('/api', appliancesRoutes);
-app.use('/api', recommendationsRoutes);
 app.use('/api', cartRoutes);
 app.use('/api', checkoutRoutes);
 app.use('/api', rentalsRoutes);
@@ -70,10 +67,9 @@ app.use('/api', addressesRoutes);
 app.use('/api', adminRoutes);
 app.use('/api/owner', ownerRoutes);
 app.use('/api', feedbackRoutes);
-app.use('/api', conciergeRoutes);
 app.use('/api', inventoryRoutes);
 app.use('/api', browsingHistoryRoutes);
-app.use('/api', maintenanceRoutes);
+app.use('/api', trustRoutes);
 
 // Global Error Handler
 app.use((err, req, res, _next) => {

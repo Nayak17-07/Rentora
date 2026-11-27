@@ -3,6 +3,7 @@ const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 const { getDb } = require('../db');
 const { makePassword, checkPassword, generateTokens, setAuthCookies, clearAuthCookies, SECRET_KEY, authenticateJWT } = require('../auth');
+const { getUserTrustProfile } = require('../utils/trust');
 const { sendOtpEmail } = require('../mailer');
 const { authLimiter, adminAuthLimiter, otpLimiter } = require('../middleware/rateLimiter');
 
@@ -447,6 +448,14 @@ router.get('/auth/me/', authenticateJWT, async (req, res) => {
     user.is_owner = Boolean(user.is_owner || user.role === 'owner');
     user.is_admin = Boolean(user.role === 'admin');
     user.roles = user.roles || ['customer', user.role].filter(Boolean);
+    const trustProfile = await getUserTrustProfile(db, req.user.id);
+    if (trustProfile) {
+      user.trust_score = trustProfile.trust_score;
+      user.verifications = trustProfile.verifications;
+      user.rental_stats = trustProfile.stats;
+      user.verification_status = trustProfile.verification_status;
+      user.joined_at = trustProfile.joined_at;
+    }
     return res.status(200).json(user);
   } catch (err) {
     console.error('Fetch me error:', err);

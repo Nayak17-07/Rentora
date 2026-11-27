@@ -292,30 +292,6 @@ const HomePage = ({ onLogout }) => {
     
     setLoading(true);
     try {
-      // Recommendations (Hybrid Engine with multi-host fallback)
-      const cityQuery = selectedCity ? `&city=${encodeURIComponent(selectedCity)}` : '';
-      let recRes = null;
-      if (token) {
-        try {
-          recRes = await fetchWithAuth(`/api/recommendations/?filter=${activeRecFilter}${cityQuery}`);
-        } catch (e) {}
-      }
-      if (!recRes || !recRes.ok) {
-        try {
-          recRes = await publicFetch(`/api/recommendations/?filter=${activeRecFilter}${cityQuery}`);
-        } catch (e1) {
-          try {
-            recRes = await publicFetch(`/api/recommendations/?filter=${activeRecFilter}${cityQuery}`);
-          } catch (e2) {
-            recRes = await fetch(`/api/recommendations/?filter=${activeRecFilter}${cityQuery}`).catch(() => null);
-          }
-        }
-      }
-      if (recRes && recRes.ok) {
-        const recData = await recRes.json().catch(() => []);
-        setRecommendations(Array.isArray(recData) ? recData : []);
-      }
-      
       // Catalog (Multi-Host Fallback: localhost -> 127.0.0.1 -> Vite proxy)
       const catCityQuery = selectedCity ? `?city=${encodeURIComponent(selectedCity)}` : '';
       let appRes = null;
@@ -1180,39 +1156,6 @@ const HomePage = ({ onLogout }) => {
 
           {/* Right Navigation & Action Buttons (Airbnb-Style Clean Architecture) */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', flexShrink: 0 }}>
-            {/* UNLMTD Plans Modal Button */}
-            <button
-              type="button"
-              id="unlmtd-plans-btn"
-              onClick={() => scrollToRoomCombos()}
-              style={{
-                background: 'linear-gradient(135deg, #111827 0%, #1f2937 100%)',
-                color: '#ffffff',
-                border: '1px solid #374151',
-                borderRadius: '999px',
-                padding: '0.4rem 0.75rem',
-                fontSize: '0.78rem',
-                fontWeight: 800,
-                cursor: 'pointer',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '0.35rem',
-                boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
-                transition: 'all 0.15s ease',
-                boxSizing: 'border-box',
-                position: 'relative',
-                zIndex: 1,
-                margin: 0
-              }}
-              onMouseOver={(e) => { e.currentTarget.style.boxShadow = '0 0 0 2px rgba(226, 55, 68, 0.4)'; e.currentTarget.style.borderColor = '#e23744'; }}
-              onMouseOut={(e) => { e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.15)'; e.currentTarget.style.borderColor = '#374151'; }}
-              title="Build Whole-Home Furniture & Appliance Subscription"
-            >
-              <Sparkles size={13} color="#fca5a5" />
-              <span>UNLMTD</span>
-              <span style={{ fontSize: '0.62rem', background: '#e23744', padding: '0.08rem 0.35rem', borderRadius: '4px' }}>NEW</span>
-            </button>
-
             {/* My Rentals Dedicated Button */}
             <Link 
               to="/rentals"
@@ -1733,7 +1676,7 @@ const HomePage = ({ onLogout }) => {
       </section>
 
       {/* ========================================================
-          UNLMTD BY RENTORA HERO BANNER (Rentora Signature Feature)
+          TRUST-FIRST RENTAL MARKETPLACE HERO BANNER
           ======================================================== */}
       <section style={{ maxWidth: '1280px', margin: '2rem auto 0', padding: '0 1.5rem' }}>
         <div style={{
@@ -1750,396 +1693,61 @@ const HomePage = ({ onLogout }) => {
           gap: '2rem',
           boxShadow: '0 20px 40px -15px rgba(0,0,0,0.3)'
         }}>
-          {/* Subtle Ambient Red Glow */}
-          <div style={{
-            position: 'absolute',
-            top: '-60px',
-            right: '-40px',
-            width: '300px',
-            height: '300px',
-            borderRadius: '50%',
-            background: 'radial-gradient(circle, rgba(226, 55, 68, 0.28) 0%, transparent 70%)',
-            pointerEvents: 'none'
-          }} />
-
-          <div style={{ maxWidth: '680px', position: 'relative', zIndex: 2 }}>
-            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', background: 'rgba(226, 55, 68, 0.2)', border: '1px solid rgba(226, 55, 68, 0.4)', padding: '0.3rem 0.8rem', borderRadius: '999px', fontSize: '0.75rem', fontWeight: 800, color: '#fca5a5', marginBottom: '1rem' }}>
-              <Sparkles size={14} />
-              <span>WHOLE-HOME SUBSCRIPTION SUITE</span>
+          <div style={{ maxWidth: '720px', position: 'relative', zIndex: 2 }}>
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', background: 'rgba(16, 185, 129, 0.18)', border: '1px solid rgba(16, 185, 129, 0.4)', padding: '0.3rem 0.8rem', borderRadius: '999px', fontSize: '0.75rem', fontWeight: 800, color: '#6ee7b7', marginBottom: '1rem' }}>
+              <ShieldCheck size={14} />
+              <span>VERIFIED TRUST MARKETPLACE</span>
             </div>
 
-            <h2 style={{ fontSize: '2.2rem', fontWeight: 900, margin: '0 0 0.75rem', letterSpacing: '-0.02em', lineHeight: 1.15 }}>
-              Furnish Your Whole Home with <span style={{ color: '#e23744' }}>UNLMTD</span>
+            <h2 style={{ fontSize: '2.1rem', fontWeight: 900, margin: '0 0 0.75rem', letterSpacing: '-0.02em', lineHeight: 1.15 }}>
+              Rent High-Value Products with <span style={{ color: '#e23744' }}>Verified Trust</span>
             </h2>
             <p style={{ color: '#94a3b8', fontSize: '1rem', margin: '0 0 1.5rem', lineHeight: 1.5 }}>
-              Why rent piece-by-piece? Choose 3, 5, or 9 items across living, bedroom, dining & appliances starting at just <strong>₹1,899/month</strong>. Includes <strong>₹0 security deposit</strong>, <strong>1 free annual style swap</strong>, and <strong>free intercity relocation</strong>.
+              Every rental is backed by <strong>multi-level verification</strong> (Email, Phone &amp; Government ID), transparent <strong>rental history &amp; reviews</strong>, <strong>refundable security deposits</strong>, and <strong>owner approval</strong> for high-value items.
             </p>
 
             <div style={{ display: 'flex', gap: '1.25rem', flexWrap: 'wrap', alignItems: 'center' }}>
-              <button
-                type="button"
-                onClick={() => scrollToRoomCombos()}
+              <Link
+                to="/kyc"
                 style={{
                   background: '#e23744',
                   color: '#ffffff',
-                  border: 'none',
+                  textDecoration: 'none',
                   borderRadius: '12px',
                   padding: '0.85rem 1.85rem',
                   fontSize: '0.95rem',
                   fontWeight: 800,
-                  cursor: 'pointer',
                   display: 'inline-flex',
                   alignItems: 'center',
                   gap: '0.5rem',
-                  boxShadow: '0 8px 24px rgba(226, 55, 68, 0.4)',
-                  transition: 'transform 0.15s ease'
+                  boxShadow: '0 8px 24px rgba(226, 55, 68, 0.4)'
                 }}
-                onMouseOver={(e) => { e.currentTarget.style.transform = 'scale(1.03)'; }}
-                onMouseOut={(e) => { e.currentTarget.style.transform = 'scale(1)'; }}
               >
-                <span>Customize Your Suite</span>
+                <span>Complete Trust Verification</span>
                 <ArrowUpRight size={18} />
-              </button>
+              </Link>
 
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', fontSize: '0.825rem', color: '#cbd5e1' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
                   <ShieldCheck size={16} color="#4ade80" />
-                  <span>0 Deposit</span>
+                  <span>Refundable Security Deposits</span>
                 </div>
                 <span>•</span>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                  <Zap size={16} color="#facc15" />
-                  <span>72h Express Setup</span>
+                  <ShieldCheck size={16} color="#38bdf8" />
+                  <span>Owner Approval for High-Value Items</span>
                 </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Quick Plan Tier Preview Box */}
-          <div style={{
-            background: 'rgba(255, 255, 255, 0.05)',
-            border: '1px solid rgba(255, 255, 255, 0.12)',
-            borderRadius: '18px',
-            padding: '1.5rem',
-            minWidth: '260px',
-            position: 'relative',
-            zIndex: 2
-          }}>
-            <div style={{ fontSize: '0.75rem', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 800, marginBottom: '0.75rem' }}>
-              POPULAR SUBSCRIPTIONS:
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-              <div onClick={() => scrollToRoomCombos()} style={{ cursor: 'pointer', background: 'rgba(255,255,255,0.06)', padding: '0.75rem', borderRadius: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div>
-                  <div style={{ fontWeight: 800, fontSize: '0.85rem' }}>1 BHK (3 Items)</div>
-                  <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>Studio Starter</div>
-                </div>
-                <div style={{ fontWeight: 900, color: '#f87171', fontSize: '1rem' }}>₹1,899/mo</div>
-              </div>
-              <div onClick={() => scrollToRoomCombos()} style={{ cursor: 'pointer', background: 'rgba(226,55,68,0.15)', border: '1px solid rgba(226,55,68,0.3)', padding: '0.75rem', borderRadius: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div>
-                  <div style={{ fontWeight: 800, fontSize: '0.85rem' }}>2 BHK (5 Items) 🔥</div>
-                  <div style={{ fontSize: '0.75rem', color: '#fca5a5' }}>Most Popular</div>
-                </div>
-                <div style={{ fontWeight: 900, color: '#ffffff', fontSize: '1rem' }}>₹3,199/mo</div>
               </div>
             </div>
           </div>
         </div>
       </section>
 
-      {/* RENTORA ASSURANCE & CORE VALUE PILLARS (Signature Rentora Benefits) */}
-      <AssuranceBanner onOpenUNLMTD={() => scrollToRoomCombos()} />
+      {/* RENTORA ASSURANCE & CORE VALUE PILLARS */}
+      <AssuranceBanner />
 
-      {/* CURATED ROOM COMBOS (Rentora 1-Click Room Packages) */}
+      {/* CURATED ROOM COMBOS */}
       <CuratedRoomCombos onRentCombo={handleRentCombo} />
-
-      {/* ========================================================
-          5. AI RECOMMENDATIONS (REAL-TIME HYBRID ENGINE & XAI)
-          ======================================================== */}
-      {recommendations.length > 0 && (
-        <section style={{ maxWidth: '1280px', margin: '3rem auto 0', padding: '0 1.5rem' }}>
-          {/* Header & Multi-Rail Filter Navigation */}
-          <div style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'flex-end',
-            marginBottom: '1.5rem',
-            flexWrap: 'wrap',
-            gap: '1rem'
-          }}>
-            <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.35rem' }}>
-                <div style={{ background: 'var(--primary-glow)', padding: '0.4rem', borderRadius: '8px' }}>
-                  <Sparkles size={20} color="var(--primary-color)" />
-                </div>
-                <h2 style={{ fontSize: '1.6rem', fontWeight: 800, margin: 0, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
-                  AI Recommendation Hub
-                </h2>
-                <span style={{
-                  fontSize: '0.72rem',
-                  background: 'linear-gradient(135deg, #e23744 0%, #b91c1c 100%)',
-                  color: '#ffffff',
-                  padding: '0.2rem 0.6rem',
-                  borderRadius: '999px',
-                  fontWeight: 800,
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.04em'
-                }}>
-                  Hybrid Engine 2.0
-                </span>
-              </div>
-              <p style={{ color: 'var(--text-secondary)', fontSize: '0.88rem', margin: 0 }}>
-                Context-aware suggestions based on your cart, room setups, and popular trends in <strong>{city}</strong>.
-              </p>
-            </div>
-
-            {/* Filter Tabs */}
-            <div style={{
-              display: 'flex',
-              background: 'var(--surface-muted)',
-              border: '1px solid var(--border-color)',
-              padding: '0.25rem',
-              borderRadius: '10px',
-              gap: '0.35rem',
-              flexWrap: 'wrap'
-            }}>
-              {[
-                { id: 'for_you', label: '🌟 For You' },
-                { id: 'room_bundles', label: '🛋️ Room Combos' },
-                { id: 'eco_saver', label: '⚡ Eco Savers' },
-                { id: 'trending', label: `📍 Popular in ${city}` }
-              ].map(tab => (
-                <button
-                  key={tab.id}
-                  type="button"
-                  onClick={() => fetchFilteredRecommendations(tab.id)}
-                  style={{
-                    background: activeRecFilter === tab.id ? 'var(--surface-color)' : 'transparent',
-                    color: activeRecFilter === tab.id ? 'var(--text-primary)' : 'var(--text-secondary)',
-                    border: activeRecFilter === tab.id ? '1px solid var(--border-color)' : '1px solid transparent',
-                    padding: '0.45rem 0.8rem',
-                    borderRadius: '8px',
-                    fontSize: '0.8rem',
-                    fontWeight: 700,
-                    cursor: 'pointer',
-                    boxShadow: activeRecFilter === tab.id ? 'var(--card-shadow)' : 'none',
-                    transition: 'all 0.15s ease'
-                  }}
-                >
-                  {tab.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Cards Grid */}
-          {recLoading ? (
-            <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-muted)' }}>
-              <Loader2 size={32} className="animate-spin" style={{ margin: '0 auto 0.5rem', color: 'var(--primary-color)' }} />
-              <div style={{ fontSize: '0.85rem' }}>Recalculating real-time hybrid scores...</div>
-            </div>
-          ) : (
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fill, minmax(285px, 1fr))',
-              gap: '1.5rem'
-            }}>
-              {recommendations.slice(0, 8).map((rec, idx) => {
-                const app = rec.recommended_appliance_details;
-                if (!app) return null;
-                const appId = app.appliance_id || app._id;
-                const isAdded = addedItems[appId];
-
-                return (
-                  <div
-                    key={rec.recommendation_id || idx}
-                    onClick={() => setSelectedProduct(app)}
-                    className="product-card panel"
-                    style={{
-                      background: 'var(--surface-color)',
-                      border: '1px solid var(--border-color)',
-                      borderRadius: '16px',
-                      overflow: 'hidden',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      boxShadow: 'var(--card-shadow)',
-                      transition: 'all 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
-                      position: 'relative'
-                    }}
-                    onMouseOver={(e) => { e.currentTarget.style.transform = 'translateY(-3px)'; e.currentTarget.style.boxShadow = 'var(--card-shadow-hover)'; }}
-                    onMouseOut={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = 'var(--card-shadow)'; }}
-                  >
-                    {/* Image Container with Badges */}
-                    <div style={{ height: '195px', background: 'var(--surface-muted)', overflow: 'hidden', position: 'relative' }}>
-                      {/* Match Score Badge */}
-                      <span style={{
-                        position: 'absolute',
-                        top: '10px',
-                        left: '10px',
-                        background: 'linear-gradient(135deg, #0284c7 0%, #0369a1 100%)',
-                        color: 'white',
-                        fontSize: '0.72rem',
-                        fontWeight: 800,
-                        padding: '0.25rem 0.6rem',
-                        borderRadius: '6px',
-                        zIndex: 2,
-                        boxShadow: '0 2px 6px rgba(2, 132, 199, 0.3)'
-                      }}>
-                        {rec.match_percentage || (rec.similarity_score * 100).toFixed(0)}% Match ⚡
-                      </span>
-
-                      {/* Bundle / Smart Add-on / Eco Badges */}
-                      <div style={{ position: 'absolute', top: '10px', right: '10px', display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'flex-end', zIndex: 2 }}>
-                        {rec.bundle_badge && (
-                          <span style={{
-                            background: rec.bundle_badge.includes('5★') ? 'rgba(16, 185, 129, 0.9)' : 'rgba(16, 185, 129, 0.15)',
-                            color: rec.bundle_badge.includes('5★') ? '#ffffff' : '#10b981',
-                            border: '1px solid rgba(16, 185, 129, 0.3)',
-                            fontSize: '0.68rem',
-                            fontWeight: 800,
-                            padding: '0.2rem 0.55rem',
-                            borderRadius: '6px'
-                          }}>
-                            {rec.bundle_badge}
-                          </span>
-                        )}
-                        {rec.energy_savings_est > 100 && (
-                          <span style={{
-                            background: '#047857',
-                            color: '#ffffff',
-                            fontSize: '0.65rem',
-                            fontWeight: 700,
-                            padding: '0.15rem 0.45rem',
-                            borderRadius: '4px'
-                          }}>
-                            Save ~₹{rec.energy_savings_est}/mo power
-                          </span>
-                        )}
-                      </div>
-
-                      <img 
-                        src={app.image_url} 
-                        alt={app.rental_name} 
-                        style={{ width: '100%', height: '100%', objectFit: 'contain', padding: '0.5rem' }} 
-                        onError={(e) => {
-                          e.currentTarget.onerror = null;
-                          e.currentTarget.src = 'https://images.unsplash.com/photo-1556911220-e15b29be8c8f?auto=format&fit=crop&q=80&w=600';
-                        }} 
-                      />
-                    </div>
-
-                    {/* Card Content */}
-                    <div style={{ padding: '1.15rem', display: 'flex', flexDirection: 'column', flex: 1 }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.35rem' }}>
-                        <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                          {app.category_id || 'Appliances'}
-                        </span>
-                        {app.rating && (
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.2rem', fontSize: '0.75rem', fontWeight: 700, color: '#f59e0b' }}>
-                            <Star size={12} fill="#f59e0b" color="#f59e0b" />
-                            <span>{app.rating}</span>
-                          </div>
-                        )}
-                      </div>
-
-                      <h3 style={{
-                        fontSize: '0.95rem',
-                        fontWeight: 700,
-                        color: 'var(--text-primary)',
-                        margin: '0 0 0.6rem',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        whiteSpace: 'nowrap'
-                      }}>
-                        {app.rental_name}
-                      </h3>
-
-                      {/* Explainable AI (XAI) Reason Pill */}
-                      <div style={{
-                        background: 'var(--surface-muted)',
-                        border: '1px solid var(--border-color)',
-                        borderRadius: '8px',
-                        padding: '0.45rem 0.65rem',
-                        fontSize: '0.75rem',
-                        color: 'var(--text-secondary)',
-                        marginBottom: '0.85rem',
-                        display: 'flex',
-                        alignItems: 'flex-start',
-                        gap: '0.35rem',
-                        lineHeight: 1.35
-                      }}>
-                        <Sparkles size={13} color="var(--primary-color)" style={{ flexShrink: 0, marginTop: '2px' }} />
-                        <span>{rec.recommendation_reason}</span>
-                      </div>
-
-                      {/* Pricing & 1-Click Action Buttons */}
-                      <div style={{ marginTop: 'auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.5rem' }}>
-                        <div>
-                          <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', display: 'block' }}>Monthly Rent</span>
-                          {rec.bundle_price && rec.bundle_price < app.monthly_price ? (
-                            <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.35rem' }}>
-                              <span style={{ fontWeight: 900, fontSize: '1.15rem', color: '#10b981' }}>
-                                ₹{rec.bundle_price}
-                                <span style={{ fontSize: '0.72rem', fontWeight: 500, color: 'var(--text-secondary)' }}>/mo</span>
-                              </span>
-                              <span style={{ fontSize: '0.75rem', textDecoration: 'line-through', color: 'var(--text-muted)' }}>
-                                ₹{app.monthly_price}
-                              </span>
-                            </div>
-                          ) : (
-                            <span style={{ fontWeight: 900, fontSize: '1.15rem', color: 'var(--text-primary)' }}>
-                              ₹{app.monthly_price}
-                              <span style={{ fontSize: '0.75rem', fontWeight: 500, color: 'var(--text-secondary)' }}>/mo</span>
-                            </span>
-                          )}
-                        </div>
-
-                        <div style={{ display: 'flex', gap: '0.35rem' }}>
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              addToCart(appId, "6", app);
-                            }}
-                            style={{
-                              background: isAdded ? '#059669' : '#e23744',
-                              color: '#ffffff',
-                              border: 'none',
-                              borderRadius: '8px',
-                              padding: '0.45rem 0.75rem',
-                              fontSize: '0.78rem',
-                              fontWeight: 700,
-                              cursor: 'pointer',
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: '0.3rem',
-                              transition: 'all 0.15s ease'
-                            }}
-                          >
-                            {isAdded ? (
-                              <>
-                                <Check size={14} />
-                                <span>Added</span>
-                              </>
-                            ) : (
-                              <>
-                                <Plus size={14} />
-                                <span>Add</span>
-                              </>
-                            )}
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </section>
-      )}
 
       {/* ========================================================
           5B. RECENTLY VIEWED APPLIANCES (Browsing History Module)

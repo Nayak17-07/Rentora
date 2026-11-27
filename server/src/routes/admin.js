@@ -9,98 +9,60 @@ const router = express.Router();
 // Strict Admin RBAC Enforcement: All administrative operations require authentication and admin role
 router.use('/admin', authenticateJWT, requireRole('admin'));
 
-// GET /api/admin/dashboard/
+// GET /api/admin/dashboard/ — Core operational metrics
 router.get('/admin/dashboard/', async (req, res) => {
   try {
     const db = getDb();
 
-    // Total revenue from rentals
-    const allRentals = await db.collection('rentals').find({}).toArray();
+    const [
+      totalUsers,
+      totalRentals,
+      activeRentals,
+      flaggedUsers,
+      pendingVerifications,
+      allRentals
+    ] = await Promise.all([
+      db.collection('users').countDocuments({}),
+      db.collection('rentals').countDocuments({}),
+      db.collection('rentals').countDocuments({ status: 'active' }),
+      db.collection('users').countDocuments({ is_flagged: true }),
+      db.collection('kyc').countDocuments({ status: { $in: ['pending', 'in_review'] } }),
+      db.collection('rentals').find({}, { projection: { amount_paid: 1 } }).toArray()
+    ]);
+
     const totalRevenue = allRentals.reduce((sum, r) => sum + (parseFloat(r.amount_paid) || 0), 0);
-    const activeRentals = await db.collection('rentals').countDocuments({ status: 'active' });
-
-    // Churn risk from ML collection user_churn_scores
-    let atRiskScores = await db.collection('user_churn_scores')
-      .find({ churn_risk_score: { $gte: 0.25 } })
-      .sort({ churn_risk_score: -1 })
-      .limit(25)
-      .toArray();
-
-    if (atRiskScores.length === 0) {
-      try {
-        const fs = require('fs');
-        const path = require('path');
-        const csvPath = path.resolve(__dirname, '../../../data/user_churn_predictions.csv');
-        if (fs.existsSync(csvPath)) {
-          const lines = fs.readFileSync(csvPath, 'utf8').trim().split('\n');
-          if (lines.length > 1) {
-            const docs = [];
-            for (let i = 1; i < lines.length; i++) {
-              const parts = lines[i].split(',');
-              if (parts.length >= 7) {
-                docs.push({
-                  user_id: parts[0],
-                  churn_risk_score: parseFloat(parts[1]) || 0.5,
-                  email: parts[2] || '',
-                  last_updated: new Date(),
-                  rentals_count: parseInt(parts[4], 10) || 0,
-                  shap_reason: parts[5] || 'Short account tenure duration identified as risk driver.',
-                  username: parts[6] || 'Customer'
-                });
-              }
-            }
-            if (docs.length > 0) {
-              await db.collection('user_churn_scores').insertMany(docs).catch(() => {});
-              atRiskScores = await db.collection('user_churn_scores')
-                .find({ churn_risk_score: { $gte: 0.25 } })
-                .sort({ churn_risk_score: -1 })
-                .limit(25)
-                .toArray();
-            }
-          }
-        }
-      } catch (syncErr) {
-        console.warn('Auto-sync user churn predictions note:', syncErr.message);
-      }
-    }
-
-    const atRiskData = atRiskScores.map(score => ({
-      username: score.username || 'Unknown',
-      email: score.email || '',
-      churn_risk_score: parseFloat(score.churn_risk_score || 0),
-      shap_reason: score.shap_reason || 'Risk factors detected',
-      last_updated: score.last_updated
-    }));
-
-    // Store sales analytics
-    const salesDoc = await db.collection('sales_analytics').findOne({ doc_type: 'store_sales_kpi' });
-    let salesAnalytics = {};
-    if (salesDoc) {
-      salesAnalytics = {
-        dataset_name: salesDoc.dataset_name || 'store_sales_data.csv',
-        appliance_furniture_records: salesDoc.appliance_furniture_records || 0,
-        total_sales_volume: salesDoc.total_sales_volume || 0,
-        total_profit_volume: salesDoc.total_profit_volume || 0,
-        avg_order_value: salesDoc.avg_order_value || 0,
-        avg_discount_pct: salesDoc.avg_discount_pct || 0,
-        categories: salesDoc.categories || [],
-        top_states: salesDoc.top_states || [],
-        city_tiers: salesDoc.city_tiers || [],
-        customer_segments: salesDoc.customer_segments || [],
-        recent_transactions: salesDoc.recent_transactions || [],
-        last_updated: salesDoc.last_updated
-      };
-    }
 
     return res.status(200).json({
-      total_revenue: totalRevenue,
+      total_users: totalUsers,
+      total_rentals: totalRentals,
       active_rentals: activeRentals,
-      at_risk_customers: atRiskData,
-      sales_analytics: salesAnalytics
+      total_revenue: totalRevenue,
+      flagged_users: flaggedUsers,
+      pending_verifications: pendingVerifications
     });
   } catch (err) {
     console.error('Admin dashboard error:', err);
     return res.status(500).json({ error: 'Internal server error fetching dashboard' });
+  }
+});
+
+// POST /api/admin/users/:user_id/flag — Flag or unflag a user account
+router.post('/admin/users/:user_id/flag', async (req, res) => {
+  try {
+    const db = getDb();
+    const userId = req.params.user_id;
+    const user = await db.collection('users').findOne({ _id: userId });
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    const nextFlagged = !Boolean(user.is_flagged);
+    await db.collection('users').updateOne(
+      { _id: userId },
+      { $set: { is_flagged: nextFlagged, flagged_reason: req.body?.reason || (nextFlagged ? 'Flagged by admin' : ''), updated_at: new Date() } }
+    );
+    return res.status(200).json({ success: true, is_flagged: nextFlagged });
+  } catch (err) {
+    return res.status(500).json({ error: 'Failed to update user flag status' });
   }
 });
 
@@ -872,68 +834,7 @@ router.get(['/admin/bi-analytics/', '/admin/business-intelligence/'], async (req
 
 let isChurnJobRunning = false;
 
-// POST /api/admin/ml/recompute-churn (Non-blocking background LightGBM & TreeSHAP execution)
-router.post('/admin/ml/recompute-churn', authenticateJWT, requireRole('admin'), async (req, res) => {
-  if (isChurnJobRunning) {
-    return res.status(409).json({
-      error: 'Churn prediction pipeline is already running in background.',
-      status: 'RUNNING'
-    });
-  }
-
-  isChurnJobRunning = true;
-  const { runPythonScript } = require('../utils/pythonRunner');
-
-  // Trigger non-blocking asynchronous execution
-  runPythonScript('ml_pipeline/etl_pipeline.py', [], 90000)
-    .then(async (result) => {
-      console.log('[ML Pipeline] Churn ETL completed successfully.');
-      isChurnJobRunning = false;
-    })
-    .catch((err) => {
-      console.error('[ML Pipeline] Churn ETL error:', err.message);
-      isChurnJobRunning = false;
-    });
-
-  return res.status(202).json({
-    success: true,
-    message: 'LightGBM Churn & TreeSHAP Pipeline started in background. Results will sync shortly.',
-    status: 'ACCEPTED'
-  });
-});
-
-// GET /api/admin/ml/churn-stats (ML Intelligence Summary)
-router.get('/admin/ml/churn-stats', async (req, res) => {
-  try {
-    const db = getDb();
-    const all = await db.collection('user_churn_scores').find({}).toArray();
-    const highRisk = all.filter(u => (u.churn_risk_score || 0) >= 0.70);
-    const medRisk = all.filter(u => (u.churn_risk_score || 0) >= 0.40 && (u.churn_risk_score || 0) < 0.70);
-    const lowRisk = all.filter(u => (u.churn_risk_score || 0) < 0.40);
-
-    const avgScore = all.length > 0
-      ? (all.reduce((acc, u) => acc + (u.churn_risk_score || 0), 0) / all.length).toFixed(3)
-      : 0;
-
-    return res.status(200).json({
-      total_analyzed: all.length,
-      high_risk_count: highRisk.length,
-      medium_risk_count: medRisk.length,
-      low_risk_count: lowRisk.length,
-      average_churn_probability: parseFloat(avgScore),
-      model_type: 'LightGBM Classifier + TreeSHAP Explainability',
-      feature_importance_factors: [
-        'Days Inactive (Account Dormancy)',
-        'Active Rental Subscriptions',
-        'Tenure Duration (Months)',
-        'Payment Default Rate',
-        'Cart Abandonment Frequency'
-      ]
-    });
-  } catch (err) {
-    return res.status(500).json({ error: 'Failed to fetch ML churn statistics' });
-  }
-});
+module.exports = router;
 
 
 // -----------------------------------------------------------------------------

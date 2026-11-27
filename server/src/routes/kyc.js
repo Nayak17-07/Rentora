@@ -356,6 +356,69 @@ router.get('/kyc/', authenticateJWT, async (req, res) => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
+// POST /api/kyc/manual-upload — Simple Manual ID Upload for Admin Review
+// ─────────────────────────────────────────────────────────────────────────────
+router.post('/kyc/manual-upload', authenticateJWT, async (req, res) => {
+  try {
+    const db = getDb();
+    const userId = req.user.id;
+    const { full_name, id_type, id_proof_base64, selfie_base64 } = req.body;
+
+    const cleanName = String(full_name || '').trim();
+    const allowedTypes = ['Aadhaar Card', 'Driving License', 'Passport'];
+    const cleanType = allowedTypes.includes(id_type) ? id_type : 'Driving License';
+
+    if (cleanName.length < 2) {
+      return res.status(400).json({ error: 'Please enter your full name as shown on your ID.' });
+    }
+    if (!id_proof_base64 || !selfie_base64) {
+      return res.status(400).json({ error: 'Please upload both your Government ID photo and a Selfie.' });
+    }
+
+    const idPreviewUrl = saveBase64Image(id_proof_base64, 'manual_id', userId) || id_proof_base64;
+    const selfiePreviewUrl = selfie_base64 ? (saveBase64Image(selfie_base64, 'selfie', userId) || selfie_base64) : '';
+    const now = new Date();
+
+    await db.collection('kyc').updateOne(
+      { user_id: userId },
+      {
+        $set: {
+          user_id: userId,
+          full_name: cleanName,
+          id_type: cleanType,
+          id_proof_name: `${cleanType.replace(/\s+/g, '_')}.jpg`,
+          id_proof_preview: idPreviewUrl,
+          address_proof_name: selfiePreviewUrl ? 'Selfie_With_ID.jpg' : 'Manual_Upload',
+          address_proof_preview: selfiePreviewUrl || '',
+          kyc_mode: 'manual_review',
+          verification_type: 'MANUAL_ADMIN_REVIEW',
+          status: 'in_review',
+          submitted_at: now,
+          rejection_reason: null
+        }
+      },
+      { upsert: true }
+    );
+
+    await db.collection('users').updateOne(
+      { _id: userId },
+      { $set: { kyc_status: 'in_review', kyc_verified: false, updated_at: now } }
+    );
+
+    return res.status(200).json({
+      success: 'ID uploaded successfully! An administrator will review and approve your verification shortly.',
+      status: 'in_review',
+      id_type: cleanType,
+      full_name: cleanName,
+      submitted_at: now.toISOString()
+    });
+  } catch (err) {
+    console.error('Manual KYC upload error:', err);
+    return res.status(500).json({ error: 'Failed to upload Government ID for review' });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
 // POST /api/kyc/offline-ekyc  — Aadhaar Paperless Offline e-KYC (ZIP / XML upload)
 // 100% Free, Unlimited, Official UIDAI standard with zero third-party API costs!
 // ─────────────────────────────────────────────────────────────────────────────
