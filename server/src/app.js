@@ -18,8 +18,53 @@ const inventoryRoutes = require('./routes/inventory');
 const trackingRoutes = require('./routes/tracking');
 const browsingHistoryRoutes = require('./routes/browsingHistory');
 const maintenanceRoutes = require('./routes/maintenance');
+const experimentsRoutes = require('./routes/experiments');
 
 const app = express();
+app.set('trust proxy', 1);
+
+// Security Headers: XSS, Clickjacking, MIME-sniffing, and MitM (HSTS in prod)
+app.use((req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=(self)');
+  res.setHeader(
+    'Content-Security-Policy',
+    "default-src 'self'; img-src 'self' data: https:; script-src 'self' https://checkout.razorpay.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; frame-ancestors 'none'"
+  );
+  if (process.env.NODE_ENV === 'production') {
+    res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+  }
+  res.removeHeader('X-Powered-By');
+  next();
+});
+
+// Bounded In-Memory Rate Limiter for /api (DoS protection)
+const rateBuckets = new Map();
+app.use('/api', (req, res, next) => {
+  const ip = req.ip || req.socket?.remoteAddress || 'unknown';
+  const now = Date.now();
+  const windowMs = 60 * 1000;
+  const maxReqs = req.path.startsWith('/auth') ? 40 : 240;
+
+  if (rateBuckets.size > 5000) {
+    for (const [k, b] of rateBuckets.entries()) {
+      if (now - b.start > windowMs) rateBuckets.delete(k);
+    }
+  }
+
+  let bucket = rateBuckets.get(ip);
+  if (!bucket || now - bucket.start > windowMs) {
+    bucket = { start: now, count: 0 };
+  }
+  bucket.count += 1;
+  rateBuckets.set(ip, bucket);
+  if (bucket.count > maxReqs) {
+    return res.status(429).json({ error: 'Too many requests. Please try again shortly.' });
+  }
+  next();
+});
 
 // CORS Configuration
 const allowedOrigins = process.env.ALLOWED_ORIGINS 
@@ -37,11 +82,15 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization', 'Idempotency-Key', 'idempotency-key']
 }));
 
+const { sanitizeNoSql } = require('./utils/sanitize');
+
 // Request payload limit (calibrated for KYC document previews while preventing memory flooding)
 app.use(express.json({ limit: '6mb' }));
 app.use(express.urlencoded({ extended: true, limit: '6mb' }));
 app.use((req, res, next) => {
-  if (!req.body) req.body = {};
+  req.body = req.body ? sanitizeNoSql(req.body) : {};
+  if (req.query) req.query = sanitizeNoSql(req.query);
+  if (req.params) req.params = sanitizeNoSql(req.params);
   next();
 });
 
@@ -76,6 +125,7 @@ app.use('/api', inventoryRoutes);
 app.use('/api', trackingRoutes);
 app.use('/api', browsingHistoryRoutes);
 app.use('/api', maintenanceRoutes);
+app.use('/api', experimentsRoutes);
 
 // Global Error Handler
 app.use((err, req, res, _next) => {

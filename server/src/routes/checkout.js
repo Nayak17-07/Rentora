@@ -710,6 +710,25 @@ router.post('/checkout/', authenticateJWT, async (req, res) => {
           );
         }
       });
+      // Non-blocking pricing & deposit intervention log for future causal/fairness analysis
+      db.collection('pricing_intervention_logs').insertOne({
+        _id: crypto.randomUUID(),
+        transaction_id: transactionId,
+        user_id: userId,
+        city: finalAddress?.city || 'unknown',
+        amount_rent: paymentDoc.amount_rent,
+        amount_deposit: paymentDoc.amount_deposit,
+        rentora_care: paymentDoc.rentora_care,
+        items_count: rentals.length,
+        items: rentals.map(r => ({
+          appliance_id: r.appliance_id,
+          tenure: r.tenure,
+          monthly_rent: r.monthly_rent,
+          security_deposit: r.security_deposit,
+          deposit_discount_applied: Boolean(r.deposit_discount_applied)
+        })),
+        created_at: now
+      }).catch(() => {});
     } catch (writeErr) {
       console.error('Checkout write failure. Executing automatic compensation rollback:', writeErr);
       for (const reserved of reservedStockLog) {

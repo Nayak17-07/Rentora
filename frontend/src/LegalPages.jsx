@@ -25,11 +25,13 @@ const LegalShell = ({ title, icon: Icon = FileText, badge, lastUpdated, descript
             Rentora
           </span>
         </Link>
-        <nav style={{ display: 'flex', gap: '1.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+        <nav style={{ display: 'flex', gap: '1.25rem', alignItems: 'center', flexWrap: 'wrap' }}>
           <Link to="/terms" style={{ color: 'var(--text-secondary)', textDecoration: 'none', fontSize: '0.88rem' }}>Terms</Link>
+          <Link to="/rental-policy" style={{ color: 'var(--text-secondary)', textDecoration: 'none', fontSize: '0.88rem' }}>Rental &amp; Return</Link>
+          <Link to="/refund-policy" style={{ color: 'var(--text-secondary)', textDecoration: 'none', fontSize: '0.88rem' }}>Refunds</Link>
+          <Link to="/owner-policy" style={{ color: 'var(--text-secondary)', textDecoration: 'none', fontSize: '0.88rem' }}>Owner Policy</Link>
           <Link to="/privacy" style={{ color: 'var(--text-secondary)', textDecoration: 'none', fontSize: '0.88rem' }}>Privacy</Link>
           <Link to="/cookies" style={{ color: 'var(--text-secondary)', textDecoration: 'none', fontSize: '0.88rem' }}>Cookies</Link>
-          <Link to="/refund-policy" style={{ color: 'var(--text-secondary)', textDecoration: 'none', fontSize: '0.88rem' }}>Refunds</Link>
           <Link to="/faq" style={{ color: 'var(--text-secondary)', textDecoration: 'none', fontSize: '0.88rem' }}>FAQ</Link>
           <ThemeToggle />
         </nav>
@@ -83,9 +85,11 @@ const LegalShell = ({ title, icon: Icon = FileText, badge, lastUpdated, descript
         <div style={{ display: 'flex', justifyContent: 'center', gap: '1.5rem', flexWrap: 'wrap', marginBottom: '1rem' }}>
           {[
             { to: '/terms', label: 'Terms of Service' },
+            { to: '/rental-policy', label: 'Rental & Return Policy' },
+            { to: '/refund-policy', label: 'Refund Policy' },
+            { to: '/owner-policy', label: 'Owner Policy' },
             { to: '/privacy', label: 'Privacy Policy' },
             { to: '/cookies', label: 'Cookie Policy' },
-            { to: '/refund-policy', label: 'Refund Policy' },
             { to: '/contact', label: 'Contact' },
           ].map(({ to, label }) => (
             <Link key={to} to={to} style={{ color: 'var(--text-secondary)', textDecoration: 'none', fontSize: '0.85rem' }}>
@@ -151,13 +155,15 @@ export const TermsPage = () => (
         'Each user may maintain only one personal account. Multiple accounts may be suspended.',
       ]} />
     </Section>
-    <Section title="4. Rental Agreement">
-      <P>Each rental constitutes a separate agreement between the Customer and Rentora. Rentals are subject to availability, KYC verification, and payment of the applicable security deposit. The rental period begins upon delivery confirmation and ends on the agreed return date.</P>
+    <Section title="4. Rental Agreement & Tenure Tiers">
+      <P>Each rental constitutes a separate digital agreement between the Customer and Rentora. Rentals are subject to availability, mandatory KYC verification, and payment of the applicable security deposit (1.5× monthly rent). The rental period begins upon delivery confirmation and ends on the agreed return date.</P>
       <UL items={[
-        'Minimum rental tenure: 1 month.',
-        'Early termination is subject to an early-exit fee as stated in your rental plan.',
-        'Products must be returned in the same condition, normal wear excluded.',
-        'Loss or damage beyond normal wear will attract replacement or repair charges.',
+        'Standard tenure plans: 3-month, 6-month, and 12-month commitments with tiered monthly discounts.',
+        'Early termination is subject to an early-exit fee as stated in our Refund Policy.',
+        'Late return penalty: ₹50/day beyond the scheduled return or billing due date.',
+        'Rentora Shield covers minor and moderate accidental wear up to ₹10,000 with ₹0 deposit deduction.',
+        'Severe damage beyond normal wear and the ₹10,000 Shield limit is deducted from the security deposit with photo evidence.',
+        'Rent-to-Own option: 70% of accumulated monthly rent accrues as buyout equity.',
       ]} />
     </Section>
     <Section title="5. Payments & Billing">
@@ -309,7 +315,7 @@ export const RefundPolicyPage = () => (
     description="Rentora's refund, cancellation, and security deposit return policy."
   >
     <Section title="1. Security Deposit Refund">
-      <P>The security deposit (typically 2× the monthly rent) is fully refundable after your rental ends, subject to a successful return inspection. Refund timeline:</P>
+      <P>The security deposit (1.5× the monthly rent, held in segregated escrow) is fully refundable after your rental ends, subject to a successful return inspection and settlement of any ₹50/day late fees. Refund timeline:</P>
       <UL items={[
         'Credit card / UPI: 5–7 business days after inspection clearance.',
         'Bank transfer (NEFT): 3–5 business days.',
@@ -332,8 +338,8 @@ export const RefundPolicyPage = () => (
         '6-month+ plan: No exit fee after 3 months of usage.',
       ]} />
     </Section>
-    <Section title="4. Damage Deductions">
-      <P>Damage beyond normal wear and tear will be assessed against the security deposit. The Customer will receive a damage report with photo evidence. Disputes can be raised within 7 days of the report via the Dispute Resolution process.</P>
+    <Section title="4. Damage Deductions & Rentora Shield">
+      <P>All rentals include Rentora Shield, providing up to ₹10,000 accidental damage protection for minor and moderate wear (₹0 deposit deduction). Severe structural damage beyond normal wear is assessed against the security deposit with photo evidence and human review. Disputes can be raised within 7 days via My Rentals.</P>
     </Section>
     <Section title="5. Swap / Exchange Policy">
       <P>Under the ExperienceSwap feature, one free swap per 6-month tenure is provided. Additional swaps incur a ₹499 logistics fee. Refunds for price-difference swaps are credited as Rentora wallet credits within 48 hours.</P>
@@ -373,7 +379,7 @@ const FAQ_ITEMS = [
   },
   {
     q: 'How is the security deposit calculated?',
-    a: 'The deposit equals 2–3× the monthly rent and is fully refundable within 5–7 business days after the product is picked up and inspected.'
+    a: 'The deposit equals 1.5× the monthly rent (held in segregated escrow) and is fully refundable within 5–7 business days after the product is picked up and inspected.'
   },
   {
     q: 'Can I swap to a different product mid-tenure?',
@@ -619,3 +625,78 @@ export const ContactPage = () => {
     </LegalShell>
   );
 };
+
+
+/* ─────────────────────────────────────────────────────────────────────────
+   7. RENTAL & RETURN POLICY PAGE
+   ──────────────────────────────────────────────────────────────────────── */
+export const RentalPolicyPage = () => (
+  <LegalShell
+    title="Rental & Return Policy"
+    icon={RefreshCw}
+    badge="RENTAL POLICY"
+    lastUpdated="November 2026"
+    description="Detailed policy for appliance delivery, condition grades, Rentora Shield waiver, returns, and Rent-to-Own buyouts."
+  >
+    <Section title="1. Tenure Plans & Security Deposit">
+      <P>Rentora offers 3-month, 6-month, and 12-month subscription plans with progressive monthly discounts. Every order requires a refundable security deposit equal to 1.5× the monthly rent, held in segregated escrow custody.</P>
+    </Section>
+    <Section title="2. Delivery, Handover OTP & Inspection">
+      <UL items={[
+        'Mandatory KYC verification must be completed prior to checkout.',
+        'At doorstep delivery, verify appliance serial number and condition with a 4-digit handover OTP.',
+        'Condition grades (GRADE_A_PLUS, GRADE_A, GRADE_B) and age-adjusted pricing are transparently tracked per serialized unit.',
+      ]} />
+    </Section>
+    <Section title="3. Rentora Shield (₹10,000 Damage Waiver)">
+      <P>Every active lease includes Rentora Shield accidental damage protection up to ₹10,000:</P>
+      <UL items={[
+        'MINOR and MODERATE accidental wear (scuffs, minor electrical surges, normal wear) incur ₹0 deposit deduction.',
+        'SEVERE structural damage beyond the ₹10,000 waiver requires photo evidence and human review before any deposit deduction.',
+        'Late returns beyond the agreed date or billing cycle incur a ₹50/day late fee.',
+      ]} />
+    </Section>
+    <Section title="4. 4-Stage Return & Refurbishment Workflow">
+      <P>Returned appliances go through a documented 4-stage recovery pipeline before restocking:</P>
+      <UL items={[
+        'Stage 1 (RETURN_INSPECTION): Diagnostic return intake and damage audit (1 day).',
+        'Stage 2 (SANITIZATION_PART_REPLACE): High-temp steam sanitization and filter/gasket refresh (2 days).',
+        'Stage 3 (QUALITY_AUDIT_28PT): 28-point electrical and safety certification (1 day).',
+        'Stage 4 (RESTOCKED_AVAILABLE): Certified unit restocked to active warehouse fleet.',
+      ]} />
+    </Section>
+    <Section title="5. Rent-to-Own Buyout Equity">
+      <P>70% of your accumulated monthly rental payments accrue as equity toward outright purchase. At buyout, your held security deposit is applied toward the residual balance (minimum residual ₹500 + applicable GST), and a Digital Certificate of Ownership is issued.</P>
+    </Section>
+  </LegalShell>
+);
+
+/* ─────────────────────────────────────────────────────────────────────────
+   8. PEER-TO-PEER OWNER & LESSOR POLICY PAGE
+   ──────────────────────────────────────────────────────────────────────── */
+export const OwnerPolicyPage = () => (
+  <LegalShell
+    title="Owner & Lessor Policy"
+    icon={Shield}
+    badge="OWNER POLICY"
+    lastUpdated="November 2026"
+    description="Terms and compensation rules for peer-to-peer appliance owners listing inventory on Rentora."
+  >
+    <Section title="1. Asset Eligibility & Onboarding">
+      <P>Peer owners may list household appliances and furniture that pass Rentora's 28-point safety and functional inspection. Each onboarded asset receives a serialized unit ID and depot assignment.</P>
+    </Section>
+    <Section title="2. Depreciation-Aware Pricing & Payouts">
+      <P>Monthly rental rates and deposits are calibrated by condition grade (GRADE_A_PLUS: 100%, GRADE_A: 90%, GRADE_B: 78%) and asset age to balance customer affordability with sustainable owner ROI.</P>
+    </Section>
+    <Section title="3. Maintenance, Refurbishment & Liability">
+      <UL items={[
+        'Rentora coordinates preventive maintenance, refurbishment between leases, and technician dispatch.',
+        'Minor and moderate customer wear is absorbed under Rentora Shield (up to ₹10,000) without penalizing owners.',
+        'Disputed severe damage cases are escalated to the human-review audit queue with intake and return photo evidence.',
+      ]} />
+    </Section>
+    <Section title="4. Settlement & Retirement">
+      <P>Owner payouts are settled monthly after rent collection. When an asset reaches end-of-life or high cumulative ROI with Grade-B wear, Rentora notifies the owner to evaluate refurbishment, buyout, or retirement.</P>
+    </Section>
+  </LegalShell>
+);

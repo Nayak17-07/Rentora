@@ -1345,3 +1345,42 @@ h1, h2, h3, h4, h5, h6 {
     overflow-y: visible !important;
   }
 }
+
+/* Sticky mobile CTA bar (shown on mobile viewports only) */
+.sticky-mobile-cta {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .sticky-mobile-cta {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 900;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.75rem 1rem;
+    background: var(--surface-color, #ffffff);
+    border-top: 1px solid var(--border-color, #e2e8f0);
+    box-shadow: 0 -6px 20px rgba(0, 0, 0, 0.08);
+  }
+}
+
+/* Keyboard accessibility focus indicators (Item 13) */
+:focus-visible {
+  outline: 2px solid var(--primary-color, #e23744);
+  outline-offset: 2px;
+}
+
+/* Reduced-motion support (Item 15) */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

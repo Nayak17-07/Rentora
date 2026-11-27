@@ -35,3 +35,8 @@ server/uploads/
 # Temporary scratch files
 scratch/
 archive/
+
+# Kaggle raw dataset cache & credentials (never commit)
+ml_pipeline/kaggle_cache/
+.kaggle/
+kaggle.json

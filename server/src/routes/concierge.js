@@ -4,6 +4,52 @@ const { optionalAuth } = require('../auth');
 
 const router = express.Router();
 
+const OLLAMA_URL = process.env.OLLAMA_URL || 'http://127.0.0.1:11434';
+const OLLAMA_MODEL = process.env.OLLAMA_MODEL || 'nemotron-mini:4b';
+
+async function queryOllama({ userMessage, policyContext, catalogItems }) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 45000);
+  try {
+    const systemPrompt = [
+      'You are Rentora Concierge, a helpful, concise AI assistant for Rentora (India appliance & furniture rental platform).',
+      'Verified Rentora rules (always stick strictly to these facts):',
+      '- Security deposit: 1.5x monthly rent held in escrow, refunded in 5-7 business days after return inspection.',
+      '- Rentora Shield: up to ₹10,000 accidental damage waiver for minor/moderate wear (₹0 deduction).',
+      '- Tenure plans: 3, 6, and 12 months with tiered monthly discounts. Late fee: ₹50/day after 2-day grace period.',
+      '- Rent-to-Own: 70% of accumulated monthly rent accrues as buyout equity.',
+      '- Mandatory KYC via Aadhaar/PAN before checkout; 24-48h delivery with handover OTP.',
+      '- NEVER invent product names or prices that are not explicitly listed in the catalog matches below.',
+      policyContext ? `Matched policy context: ${policyContext}` : '',
+      catalogItems.length > 0
+        ? `Available catalog matches from MongoDB:\n${catalogItems.map(a => `- ${a.rental_name} (${a.category_id}): ₹${a.monthly_price}/mo, deposit ₹${a.security_deposit}`).join('\n')}`
+        : 'No specific catalog items matched; answer the user question helpfully and concisely.'
+    ].filter(Boolean).join('\n');
+
+    const resp = await fetch(`${OLLAMA_URL}/api/chat`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      signal: controller.signal,
+      body: JSON.stringify({
+        model: OLLAMA_MODEL,
+        stream: false,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: String(userMessage).slice(0, 1000) }
+        ]
+      })
+    });
+    if (!resp.ok) return null;
+    const data = await resp.json();
+    const text = data?.message?.content ? String(data.message.content).trim() : '';
+    return text || null;
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // KNOWLEDGE BASE — Verified Rentora Policies & Guarantees
 // ─────────────────────────────────────────────────────────────────────────────
@@ -195,8 +241,7 @@ router.post('/concierge/chat', optionalAuth, async (req, res) => {
         } else {
           query.$or = [
             { rental_name: { $regex: matchedCat.regex } },
-            { sub_category: { $regex: new RegExp(matchedCat.sub, 'i') } },
-            { category_id: { $regex: new RegExp(matchedCat.cat, 'i') } }
+            { sub_category: { $regex: new RegExp(matchedCat.sub, 'i') } }
           ];
         }
       }
@@ -253,11 +298,27 @@ router.post('/concierge/chat', optionalAuth, async (req, res) => {
       }
     }
 
+    // 3. Generate live response via local Ollama (grounded in Rentora policies + MongoDB catalog)
+    const policySnippet = bestIntent && KNOWLEDGE_BASE[bestIntent]
+      ? `${KNOWLEDGE_BASE[bestIntent].title}: ${KNOWLEDGE_BASE[bestIntent].summary}`
+      : '';
+    const ollamaReply = await queryOllama({
+      userMessage: message,
+      policyContext: policySnippet,
+      catalogItems: recommendations
+    });
+    const aiSource = ollamaReply ? 'ollama' : 'fallback';
+    if (ollamaReply) {
+      reply = ollamaReply;
+    }
+
     return res.status(200).json({
       reply,
       recommendations,
       action,
       suggestedChips,
+      ai_source: aiSource,
+      model_used: ollamaReply ? OLLAMA_MODEL : 'rule-fallback',
       timestamp: new Date().toISOString()
     });
 

@@ -3,6 +3,7 @@ const crypto = require('crypto');
 const { getDb } = require('../db');
 const { authenticateJWT, requireRole } = require('../auth');
 const { notifyAdmin, broadcastEvent } = require('../socket');
+const { computeDepreciationFairSchedule } = require('../utils/fairness');
 
 const router = express.Router();
 
@@ -199,9 +200,17 @@ router.post('/inventory/refurbish-step/:unit_id', async (req, res) => {
       responseMsg = `Unit ${unit.serial_number} moved to stage: ${next_stage}.`;
     }
 
+    const historySnapshot = {
+      stage: next_stage,
+      condition_grade: updates.condition_grade || unit.condition_grade,
+      notes: updates.refurbish_notes || notes || '',
+      technician: updates.refurbish_technician || assigned_technician || 'System',
+      inspected_at: updates.last_inspected_at
+    };
+
     await db.collection('serialized_inventory_units').updateOne(
       { _id: unit._id },
-      { $set: updates }
+      { $set: updates, $push: { inspection_history: historySnapshot } }
     );
 
     notifyAdmin('inventory:refurbish_updated', {
@@ -302,6 +311,95 @@ router.get('/inventory/low-stock-predictions', async (req, res) => {
   } catch (err) {
     console.error('Low-stock prediction error:', err);
     return res.status(500).json({ error: 'Failed to retrieve low-stock predictions' });
+  }
+});
+
+// GET /api/inventory/fairness-schedule - Initiative 10: Depreciation-aware pricing & deposit schedule
+router.get('/inventory/fairness-schedule', async (req, res) => {
+  try {
+    const db = getDb();
+    await ensureSerializedUnits(db);
+    const units = await db.collection('serialized_inventory_units').find({}).limit(200).toArray();
+
+    const schedule = units.map((u) => {
+      const approxBaseMonthly = u.procurement_cost ? Math.round(u.procurement_cost / 28) : 700;
+      const fair = computeDepreciationFairSchedule({
+        baseMonthlyPrice: approxBaseMonthly,
+        conditionGrade: u.condition_grade || 'GRADE_A',
+        manufactureYear: u.manufacture_year || 2024,
+        procurementCost: u.procurement_cost || 0,
+        rentalRevenueGenerated: u.rental_revenue_generated || 0
+      });
+      return {
+        unit_id: u.unit_id,
+        serial_number: u.serial_number,
+        rental_name: u.rental_name,
+        depot_location: u.depot_location,
+        depreciation_book_value: u.depreciation_book_value || 0,
+        ...fair
+      };
+    });
+
+    return res.status(200).json({
+      total_units: schedule.length,
+      schedule
+    });
+  } catch (err) {
+    console.error('Fairness schedule error:', err);
+    return res.status(500).json({ error: 'Failed to compute depreciation fairness schedule' });
+  }
+});
+
+// GET /api/inventory/recovery-analytics - Initiatives 3 & 9: Reverse logistics & depot balance
+router.get('/inventory/recovery-analytics', async (req, res) => {
+  try {
+    const db = getDb();
+    await ensureSerializedUnits(db);
+    const units = await db.collection('serialized_inventory_units').find({}).toArray();
+
+    const byDepot = {};
+    const retirementCandidates = [];
+    const refurbBacklog = [];
+
+    for (const u of units) {
+      const depot = u.depot_location || 'Unknown';
+      if (!byDepot[depot]) {
+        byDepot[depot] = { available: 0, leased: 0, refurbishing: 0 };
+      }
+      if (u.lifecycle_status === 'IN_WAREHOUSE') byDepot[depot].available += 1;
+      else if (u.lifecycle_status === 'ACTIVE_LEASE') byDepot[depot].leased += 1;
+      else if (u.lifecycle_status === 'UNDER_REFURBISHMENT' || u.lifecycle_status === 'RETURN_INSPECTION') {
+        byDepot[depot].refurbishing += 1;
+        refurbBacklog.push({
+          unit_id: u.unit_id,
+          serial_number: u.serial_number,
+          stage: u.refurbish_stage || 'RETURN_INSPECTION',
+          depot_location: depot
+        });
+      }
+
+      if ((u.condition_grade === 'GRADE_B' && (u.roi_percentage || 0) >= 100) || (u.roi_percentage || 0) >= 130) {
+        retirementCandidates.push({
+          unit_id: u.unit_id,
+          serial_number: u.serial_number,
+          condition_grade: u.condition_grade,
+          roi_percentage: u.roi_percentage || 0,
+          recommended_action: 'EVALUATE_RETIREMENT_OR_LIQUIDATION'
+        });
+      }
+    }
+
+    return res.status(200).json({
+      total_units: units.length,
+      depot_balance: byDepot,
+      refurb_backlog_count: refurbBacklog.length,
+      refurb_backlog: refurbBacklog.slice(0, 25),
+      retirement_candidates_count: retirementCandidates.length,
+      retirement_candidates: retirementCandidates.slice(0, 25)
+    });
+  } catch (err) {
+    console.error('Recovery analytics error:', err);
+    return res.status(500).json({ error: 'Failed to compute recovery analytics' });
   }
 });
 

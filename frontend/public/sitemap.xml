@@ -6,9 +6,12 @@
   <url><loc>https://www.rentora.in/register</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
   <!-- Legal & informational -->
   <url><loc>https://www.rentora.in/terms</loc><changefreq>yearly</changefreq><priority>0.5</priority></url>
+  <url><loc>https://www.rentora.in/rental-policy</loc><changefreq>monthly</changefreq><priority>0.6</priority></url>
+  <url><loc>https://www.rentora.in/owner-policy</loc><changefreq>monthly</changefreq><priority>0.5</priority></url>
   <url><loc>https://www.rentora.in/privacy</loc><changefreq>yearly</changefreq><priority>0.5</priority></url>
   <url><loc>https://www.rentora.in/cookies</loc><changefreq>yearly</changefreq><priority>0.4</priority></url>
   <url><loc>https://www.rentora.in/refund-policy</loc><changefreq>yearly</changefreq><priority>0.5</priority></url>
   <url><loc>https://www.rentora.in/faq</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
   <url><loc>https://www.rentora.in/contact</loc><changefreq>monthly</changefreq><priority>0.6</priority></url>
+  <url><loc>https://www.rentora.in/thank-you</loc><changefreq>yearly</changefreq><priority>0.3</priority></url>
 </urlset>

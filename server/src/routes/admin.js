@@ -1037,6 +1037,92 @@ router.post('/admin/customers/:id/retention-perk', authenticateJWT, requireRole(
   }
 });
 
+// GET /api/admin/audit-queue - Human-Review Triage & Evidence Allocation (no automated verdicts)
+router.get('/admin/audit-queue', authenticateJWT, requireRole('admin'), async (req, res) => {
+  try {
+    const db = getDb();
+    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit, 10) || 25));
+    const rentals = await db.collection('rentals').find({}).limit(500).toArray();
+
+    const queue = rentals.map((r) => {
+      const deposit = parseFloat(r.security_deposit || 0) || 0;
+      const fines = parseFloat(r.total_fines_deducted || 0) || 0;
+      const hasDamageReport = Boolean(r.damage_report);
+      const status = String(r.status || 'unknown');
+
+      const exposureScore = Math.min(1.0, deposit / 3000.0);
+      const disputeSignal = (fines > 0 || hasDamageReport) ? 0.4 : 0.0;
+      const uncertaintySignal = ((status === 'inactive' || status === 'returned') && !hasDamageReport) ? 0.25 : 0.0;
+      const priorityScore = Math.round((0.45 * exposureScore + disputeSignal + uncertaintySignal) * 10000) / 10000;
+
+      const requiredEvidence = ['escrow_ledger', 'handover_otp'];
+      if (hasDamageReport || fines > 0) {
+        requiredEvidence.push('intake_inspection_photos', 'return_inspection_photos');
+      }
+      if ((status === 'inactive' || status === 'returned') && !hasDamageReport) {
+        requiredEvidence.push('missing_damage_report_clarification');
+      }
+
+      return {
+        rental_id: r.rental_id || String(r._id),
+        user_id: r.user_id,
+        status,
+        priority_score: priorityScore,
+        human_review_required: priorityScore >= 0.40,
+        automated_verdict: null,
+        required_evidence: requiredEvidence
+      };
+    });
+
+    queue.sort((a, b) => b.priority_score - a.priority_score);
+    return res.status(200).json({
+      total_evaluated: queue.length,
+      flagged_count: queue.filter(q => q.human_review_required).length,
+      queue: queue.slice(0, limit),
+      evaluated_at: new Date().toISOString()
+    });
+  } catch (err) {
+    console.error('Admin audit queue error:', err);
+    return res.status(500).json({ error: 'Failed to build human-review audit queue' });
+  }
+});
+
+// POST /api/admin/audit-queue/:rental_id/review - Record human review & verified evidence (never automated verdict)
+router.post('/admin/audit-queue/:rental_id/review', authenticateJWT, requireRole('admin'), async (req, res) => {
+  try {
+    const db = getDb();
+    const rentalId = req.params.rental_id;
+    const { evidence_verified = [], human_notes = '', decision_status = 'REVIEWED_BY_HUMAN' } = req.body;
+
+    const reviewRecord = {
+      reviewed_by: req.user.user_id,
+      evidence_verified: Array.isArray(evidence_verified) ? evidence_verified : [],
+      human_notes: String(human_notes),
+      decision_status: String(decision_status),
+      automated_verdict: null,
+      reviewed_at: new Date().toISOString()
+    };
+
+    const result = await db.collection('rentals').updateOne(
+      { $or: [{ _id: rentalId }, { rental_id: rentalId }] },
+      { $set: { human_review: reviewRecord } }
+    );
+
+    if (result.matchedCount === 0) {
+      return res.status(404).json({ error: 'Rental record not found for human review' });
+    }
+
+    return res.status(200).json({
+      success: true,
+      rental_id: rentalId,
+      human_review: reviewRecord
+    });
+  } catch (err) {
+    console.error('Admin audit review error:', err);
+    return res.status(500).json({ error: 'Failed to record human review' });
+  }
+});
+
 module.exports = router;
 
 

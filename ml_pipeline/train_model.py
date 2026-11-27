@@ -10,8 +10,6 @@ from sklearn.metrics.pairwise import cosine_similarity
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from api.mongo_client import get_mongo_db
-
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 MODEL_ARTIFACT_PATH = os.path.join(CURRENT_DIR, "recommender_hybrid_model.joblib")
 
@@ -81,6 +79,7 @@ def train_and_generate_recommendations():
     Trains hybrid content-collaborative recommender and synchronizes MongoDB user recommendations.
     """
     try:
+        from api.mongo_client import get_mongo_db
         db = get_mongo_db()
         print("[ML Recommender] Fetching catalog and transaction history from MongoDB...")
         

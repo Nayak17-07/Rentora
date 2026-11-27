@@ -370,6 +370,7 @@ router.patch('/rentals/', authenticateJWT, async (req, res) => {
       });
     }
 
+    const RENTORA_SHIELD_WAIVER_LIMIT = 10000.0; // Rs. 10,000 accidental damage protection waiver
     const damageLevel = req.body.damage_level || 'NONE'; // NONE | MINOR | MODERATE | SEVERE
     const damageDescription = req.body.damage_description || '';
     const safeLateDays = Math.max(0, parseInt(req.body.late_days || 0, 10) || 0);
@@ -377,9 +378,14 @@ router.patch('/rentals/', authenticateJWT, async (req, res) => {
 
     let damageFine = 0.0;
     let waiverApplied = false;
+    let waiverCoveredAmount = 0.0;
 
     if (damageLevel === 'MINOR' || damageLevel === 'MODERATE') {
       waiverApplied = true;
+      waiverCoveredAmount = Math.min(
+        RENTORA_SHIELD_WAIVER_LIMIT,
+        Math.max(0, parseFloat(req.body.assessed_damage_cost || 0.0) || 0)
+      );
       damageFine = 0.0;
     } else if (damageLevel === 'SEVERE') {
       const assessedCost = Math.max(0, parseFloat(req.body.assessed_damage_cost || 1000.0) || 0);
@@ -405,6 +411,8 @@ router.patch('/rentals/', authenticateJWT, async (req, res) => {
         level: damageLevel,
         description: damageDescription,
         waiver_applied: waiverApplied,
+        shield_waiver_limit: RENTORA_SHIELD_WAIVER_LIMIT,
+        waiver_covered_amount: waiverCoveredAmount,
         damage_fine: damageFine
       },
       fine_calculation: {

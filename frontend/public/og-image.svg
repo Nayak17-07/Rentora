@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0f172a"/>
+      <stop offset="100%" stop-color="#1e293b"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#e23744"/>
+      <stop offset="100%" stop-color="#f97316"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="630" fill="url(#bg)"/>
+  <circle cx="1050" cy="120" r="220" fill="#e23744" opacity="0.12"/>
+  <circle cx="160" cy="540" r="180" fill="#f97316" opacity="0.10"/>
+  <rect x="96" y="130" width="160" height="44" rx="22" fill="url(#accent)"/>
+  <text x="176" y="159" font-family="Inter, Arial, sans-serif" font-size="20" font-weight="700" fill="#ffffff" text-anchor="middle">RENTORA</text>
+  <text x="96" y="255" font-family="Outfit, Arial, sans-serif" font-size="64" font-weight="800" fill="#ffffff">Smart Furniture &amp;</text>
+  <text x="96" y="330" font-family="Outfit, Arial, sans-serif" font-size="64" font-weight="800" fill="#ffffff">Appliance Rentals</text>
+  <text x="96" y="405" font-family="Inter, Arial, sans-serif" font-size="28" fill="#cbd5e1">1.5x Escrow Deposit · ₹10,000 Rentora Shield · 70% Rent-to-Own Equity</text>
+  <text x="96" y="510" font-family="Inter, Arial, sans-serif" font-size="22" fill="#94a3b8">Mumbai · Bangalore · Delhi NCR · Hyderabad · Pune</text>
+</svg>
