@@ -15,12 +15,12 @@ const {
 const router = express.Router();
 
 const ESCROW_NODAL_ACCOUNT = {
-  bank_name: 'ICICI Bank Nodal Escrow',
-  account_name: 'Rentora Technology Services Escrow Trust A/C',
+  bank_name: 'Rentora Deposit Settlement Account',
+  account_name: 'Rentora Technology Services Deposit A/C',
   account_number: '000405012389',
   ifsc: 'ICIC0000004',
-  regulatory_framework: 'RBI Section 18 of Payment & Settlement Systems Act',
-  trust_officer: 'Nodal Custody & Settlement Desk (Mumbai Central)'
+  regulatory_framework: 'Standard Refundable Deposit Tracking',
+  trust_officer: 'Deposit Settlement Desk'
 };
 
 // GET /api/payments/config — Razorpay Public Configuration
@@ -268,7 +268,7 @@ router.get('/payments/escrow/ledger', authenticateJWT, async (req, res) => {
         total_escrow_held: Math.round(totalEscrowHeld * 100) / 100,
         total_escrow_refunded: Math.round(totalEscrowRefunded * 100) / 100,
         total_escrow_contracts: ledgerEntries.length,
-        compliance_status: '100% RBI TRUST COMPLIANT'
+        compliance_status: 'STANDARD DEPOSIT TRACKING'
       },
       ledger_entries: ledgerEntries
     });

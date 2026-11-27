@@ -96,7 +96,7 @@ router.get('/rentals/', authenticateJWT, async (req, res) => {
             {
               stage: 'ORDER_CONFIRMED',
               title: 'Order Confirmed & Lease Contract Signed',
-              description: 'Digital rental agreement verified and security deposit held in RBI-compliant escrow.',
+              description: 'Digital rental agreement verified and refundable security deposit recorded.',
               timestamp: r.rented_at,
               completed: true
             },
@@ -705,8 +705,8 @@ router.get('/rentals/:rental_id/agreement', authenticateJWT, async (req, res) =>
         },
         {
           clause_num: 2,
-          title: 'RBI-Compliant Escrow Deposit Protection',
-          text: `A refundable security deposit of ?${rental.security_deposit} has been transferred and locked under Segregated Escrow Custody (Escrow ID: ${rental.escrow_id || 'ESC-BLR-ACTIVE'}). The deposit shall remain inviolable against arbitrary commercial forfeiture.`
+          title: 'Refundable Security Deposit Protection',
+          text: `A refundable security deposit of ₹${rental.security_deposit} has been recorded (Deposit Reference: ${rental.escrow_id || 'ESC-BLR-ACTIVE'}) and is 100% refundable upon asset return following doorstep QA inspection.`
         },
         {
           clause_num: 3,

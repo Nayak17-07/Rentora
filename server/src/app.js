@@ -15,7 +15,6 @@ const feedbackRoutes = require('./routes/feedback');
 const addressesRoutes = require('./routes/addresses');
 const conciergeRoutes = require('./routes/concierge');
 const inventoryRoutes = require('./routes/inventory');
-const trackingRoutes = require('./routes/tracking');
 const browsingHistoryRoutes = require('./routes/browsingHistory');
 const maintenanceRoutes = require('./routes/maintenance');
 
@@ -73,7 +72,6 @@ app.use('/api/owner', ownerRoutes);
 app.use('/api', feedbackRoutes);
 app.use('/api', conciergeRoutes);
 app.use('/api', inventoryRoutes);
-app.use('/api', trackingRoutes);
 app.use('/api', browsingHistoryRoutes);
 app.use('/api', maintenanceRoutes);
 

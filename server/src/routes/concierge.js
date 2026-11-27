@@ -34,13 +34,13 @@ const KNOWLEDGE_BASE = {
   },
   deposit_refund: {
     title: "💰 Security Deposit Refund Policy",
-    summary: "Your refundable security deposit is held securely in an RBI-compliant escrow facility. Once your rental concludes and our QA team completes the doorstep pickup inspection, 100% of the deposit balance is credited back to your bank account or UPI within 5 to 7 business days.",
+    summary: "Your refundable security deposit is recorded on your lease. Once your rental concludes and our QA team completes the doorstep pickup inspection, 100% of the deposit balance is credited back to your bank account or UPI within 5 to 7 business days.",
     action: { type: 'NAVIGATE_RENTALS', label: '📦 View Active Rentals & Deposit' },
     followUps: ["📦 View Active Orders", "🛡️ Damage Waiver Policy", "🚚 Free Shifting"]
   },
   delivery: {
     title: "📍 48-Hour Delivery & White-Glove Setup",
-    summary: "All Rentora orders include free doorstep delivery, hydraulic elevator handling, plumbing connections, and electric demos within 24 to 48 hours. You can track your delivery vehicle in real-time and provide your secure 4-digit OTP to the technician.",
+    summary: "All Rentora orders include free doorstep delivery, hydraulic elevator handling, plumbing connections, and electric demos within 24 to 48 hours. You can track your delivery stage and provide your secure 4-digit OTP to the technician.",
     action: { type: 'NAVIGATE_RENTALS', label: '📍 Track Active Delivery & OTP' },
     followUps: ["📍 Track Live Van & OTP", "🛠️ Book Installation Help", "💡 Recommend Combos"]
   },
@@ -64,7 +64,7 @@ const KNOWLEDGE_BASE = {
   },
   digital_agreement: {
     title: "📄 Digital Rental Agreement and Legal e-Sign (Module 4)",
-    summary: "Every booking on Rentora is legally secured under the Information Technology Act, 2000 and the Indian Stamp Act, 1899. Your digital lease agreement includes an official e-Stamp reference, segregated RBI escrow custody ID, Rs. 10,000 damage waiver covenant, and cryptographic SHA-256 signature verification. You can view, verify, and print your signed agreement anytime under My Rentals.",
+    summary: "Every booking on Rentora is legally secured under the Information Technology Act, 2000 and the Indian Stamp Act, 1899. Your digital lease agreement includes an official e-Stamp reference, deposit reference ID, Rs. 10,000 damage waiver covenant, and cryptographic SHA-256 signature verification. You can view, verify, and print your signed agreement anytime under My Rentals.",
     action: { type: 'NAVIGATE_RENTALS', label: '📄 View Signed Digital Agreement' },
     followUps: ["📦 View My Rentals", "🛡️ Damage Waiver Policy", "💎 Rent-to-Own Equity"]
   }

@@ -8,19 +8,30 @@ const { authLimiter, adminAuthLimiter, otpLimiter } = require('../middleware/rat
 
 const router = express.Router();
 
+const GMAIL_REGEX = /^[a-z0-9._%+-]+@gmail\.com$/i;
+
 // POST /api/auth/send-signup-otp/ (Real-Time Gmail OTP Request for Registration)
 router.post('/auth/send-signup-otp/', otpLimiter, async (req, res) => {
   try {
-    const { username, email, password, phone_num } = req.body;
+    const { username, email, password, phone_num, role } = req.body;
     const db = getDb();
 
     if (!username || !email || !password) {
       return res.status(400).json({ error: 'Username, email, and password are required' });
     }
 
+    if (typeof password !== 'string' || password.length < 6) {
+      return res.status(400).json({ error: 'Password must be at least 6 characters long.' });
+    }
+
     const cleanEmail = email.toLowerCase().trim();
+    if (!GMAIL_REGEX.test(cleanEmail)) {
+      return res.status(400).json({ error: 'Only @gmail.com addresses are allowed for new user sign up.' });
+    }
+
     const cleanUsername = username.trim();
     const escapedUsername = cleanUsername.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const assignedRole = role === 'owner' ? 'owner' : 'customer';
 
     // Check if username already exists
     const existingUser = await db.collection('users').findOne({ 
@@ -52,8 +63,9 @@ router.post('/auth/send-signup-otp/', otpLimiter, async (req, res) => {
           email: cleanEmail,
           password: makePassword(password),
           phone_num: phone_num ? phone_num.trim() : '',
-          role: 'customer',
+          role: assignedRole,
           otp,
+          attempts: 0,
           created_at: now,
           expires_at: expiresAt
         }
@@ -63,16 +75,16 @@ router.post('/auth/send-signup-otp/', otpLimiter, async (req, res) => {
 
     // Send real-time OTP to the user's Gmail
     const mailResult = await sendOtpEmail(cleanEmail, otp, 'signup');
-
-    // Security Gate: NEVER expose OTP in production environment
-    const isProduction = process.env.NODE_ENV === 'production';
-    const allowDevMockOtp = !isProduction && (process.env.ALLOW_DEV_MOCK_OTP !== 'false');
+    if (!mailResult.sent || mailResult.simulated) {
+      await db.collection('signup_otps').deleteOne({ email: cleanEmail });
+      return res.status(mailResult.error ? 502 : 503).json({
+        error: 'Unable to send OTP to your Gmail address. Please ensure Gmail SMTP (GMAIL_USER & GMAIL_APP_PASSWORD) is configured.'
+      });
+    }
 
     return res.status(200).json({
       success: 'Real-time 6-digit verification code sent to your Gmail',
-      email: cleanEmail,
-      simulated: mailResult.simulated,
-      mock_otp: (allowDevMockOtp && mailResult.simulated) ? otp : undefined
+      email: cleanEmail
     });
   } catch (err) {
     console.error('Send signup OTP error:', err);
@@ -92,17 +104,29 @@ router.post('/auth/verify-signup-otp/', otpLimiter, async (req, res) => {
     const cleanOtp = String(otp).trim();
     const db = getDb();
 
-    const record = await db.collection('signup_otps').findOne({
-      email: cleanEmail,
-      otp: cleanOtp
-    });
-
+    const record = await db.collection('signup_otps').findOne({ email: cleanEmail });
     if (!record) {
-      return res.status(400).json({ error: 'Invalid verification code. Please check your Gmail and try again.' });
+      return res.status(400).json({ error: 'Invalid or expired verification code. Please request a new one.' });
+    }
+
+    if ((record.attempts || 0) >= 5) {
+      await db.collection('signup_otps').deleteOne({ email: cleanEmail });
+      return res.status(429).json({ error: 'Too many failed verification attempts. Please request a new code.' });
     }
 
     if (new Date() > new Date(record.expires_at)) {
+      await db.collection('signup_otps').deleteOne({ email: cleanEmail });
       return res.status(400).json({ error: 'Verification code has expired. Please request a new one.' });
+    }
+
+    const userOtpBuf = Buffer.from(cleanOtp);
+    const storedOtpBuf = Buffer.from(String(record.otp).trim());
+    const match = userOtpBuf.length === storedOtpBuf.length && crypto.timingSafeEqual(userOtpBuf, storedOtpBuf);
+
+    if (!match) {
+      await db.collection('signup_otps').updateOne({ email: cleanEmail }, { $inc: { attempts: 1 } });
+      const remaining = Math.max(0, 5 - ((record.attempts || 0) + 1));
+      return res.status(400).json({ error: `Invalid verification code. (${remaining} attempts remaining)` });
     }
 
     // Check if account was created concurrently
@@ -113,6 +137,7 @@ router.post('/auth/verify-signup-otp/', otpLimiter, async (req, res) => {
       return res.status(400).json({ error: 'Account already registered. Please log in.' });
     }
 
+    const assignedRole = record.role === 'owner' ? 'owner' : 'customer';
     const userId = crypto.randomUUID();
     const userDoc = {
       _id: userId,
@@ -120,7 +145,9 @@ router.post('/auth/verify-signup-otp/', otpLimiter, async (req, res) => {
       email: record.email,
       password: record.password,
       phone_num: record.phone_num,
-      role: 'customer',
+      role: assignedRole,
+      is_owner: assignedRole === 'owner',
+      roles: assignedRole === 'owner' ? ['customer', 'owner'] : ['customer'],
       email_verified: true,
       email_verified_at: new Date(),
       kyc_verified: false,
@@ -132,6 +159,7 @@ router.post('/auth/verify-signup-otp/', otpLimiter, async (req, res) => {
     await db.collection('signup_otps').deleteOne({ email: cleanEmail });
 
     const tokens = generateTokens(userId);
+    setAuthCookies(res, tokens);
 
     return res.status(201).json({
       success: 'Gmail verified successfully! Account created.',
@@ -151,43 +179,11 @@ router.post('/auth/verify-signup-otp/', otpLimiter, async (req, res) => {
   }
 });
 
-// POST /api/users/ (Legacy direct registration fallback)
-router.post('/users/', async (req, res) => {
-  try {
-    const { username, email, password, phone_num } = req.body;
-    const db = getDb();
-
-    if (!username || !email || !password) {
-      return res.status(400).json({ error: ['Username, email, and password are required'] });
-    }
-
-    const existingUser = await db.collection('users').findOne({ username });
-    if (existingUser) {
-      return res.status(400).json({ error: ['Username already exists'] });
-    }
-
-    const existingEmail = await db.collection('users').findOne({ email });
-    if (existingEmail) {
-      return res.status(400).json({ error: ['Email already exists'] });
-    }
-
-    const userId = crypto.randomUUID();
-    const userDoc = {
-      _id: userId,
-      username,
-      email,
-      password: makePassword(password),
-      phone_num: phone_num || '',
-      role: 'customer',
-      created_at: new Date()
-    };
-
-    await db.collection('users').insertOne(userDoc);
-    return res.status(201).json({ success: 'Account created' });
-  } catch (err) {
-    console.error('Registration error:', err);
-    return res.status(500).json({ error: ['Internal server error during registration'] });
-  }
+// POST /api/users/ (Disabled: sign up is only allowed via Gmail OTP verification)
+router.post('/users/', (_req, res) => {
+  return res.status(403).json({
+    error: 'Direct signup is disabled. New user registration requires Gmail OTP verification.'
+  });
 });
 
 // POST /api/token/ (Login)

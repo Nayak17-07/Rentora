@@ -41,7 +41,6 @@ const RegisterPage = ({ onLogin }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [resendCountdown, setResendCountdown] = useState(60);
   const [canResend, setCanResend] = useState(false);
-  const [otpInfo, setOtpInfo] = useState({ simulated: false, mock_otp: '' });
   const [verifiedSuccess, setVerifiedSuccess] = useState(false);
 
   const navigate = useNavigate();
@@ -84,15 +83,27 @@ const RegisterPage = ({ onLogin }) => {
   // Step 1: Send Real-Time OTP to Gmail
   const handleRequestOtp = async (e) => {
     if (e) e.preventDefault();
-    setIsLoading(true);
     setError('');
     setSuccessMsg('');
+
+    const cleanEmail = formData.email.trim().toLowerCase();
+    if (!/^[a-z0-9._%+-]+@gmail\.com$/i.test(cleanEmail)) {
+      setError('Please enter a valid @gmail.com address. New user sign up is only available via Gmail OTP.');
+      return;
+    }
+
+    if (!formData.password || formData.password.length < 6) {
+      setError('Password must be at least 6 characters long.');
+      return;
+    }
+
+    setIsLoading(true);
 
     try {
       const res = await publicFetch('/api/auth/send-signup-otp/', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData)
+        body: JSON.stringify({ ...formData, email: cleanEmail })
       });
 
       const data = await res.json();
@@ -101,10 +112,6 @@ const RegisterPage = ({ onLogin }) => {
         throw new Error(data.error || 'Failed to send verification code');
       }
 
-      setOtpInfo({
-        simulated: data.simulated || false,
-        mock_otp: data.mock_otp || ''
-      });
       setStep('otp');
       setOtpDigits(['', '', '', '', '', '']);
       setResendCountdown(60);
@@ -206,8 +213,9 @@ const RegisterPage = ({ onLogin }) => {
       const res = await publicFetch('/api/auth/verify-signup-otp/', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({
-          email: formData.email,
+          email: formData.email.trim().toLowerCase(),
           otp: finalCode
         })
       });
@@ -676,40 +684,6 @@ const RegisterPage = ({ onLogin }) => {
                       </a>
                     </div>
                   </div>
-
-                  {/* Dev Simulation Badge (Shown only if Gmail credentials not configured) */}
-                  {otpInfo.simulated && otpInfo.mock_otp && (
-                    <div style={{
-                      background: 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)',
-                      border: '1px solid #f59e0b',
-                      borderRadius: '14px',
-                      padding: '0.75rem 1rem',
-                      marginBottom: '1.25rem',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      fontSize: '0.85rem',
-                      color: '#92400e'
-                    }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontWeight: 700 }}>
-                        <Sparkles size={16} color="#d97706" />
-                        <span>Dev Mode Active</span>
-                      </div>
-                      <div style={{
-                        background: '#ffffff',
-                        padding: '0.2rem 0.6rem',
-                        borderRadius: '8px',
-                        fontFamily: 'monospace',
-                        fontWeight: 900,
-                        fontSize: '1rem',
-                        letterSpacing: '2px',
-                        color: '#b45309',
-                        boxShadow: '0 1px 3px rgba(0,0,0,0.06)'
-                      }}>
-                        {otpInfo.mock_otp}
-                      </div>
-                    </div>
-                  )}
 
                   {/* Error Notification */}
                   {error && (

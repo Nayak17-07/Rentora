@@ -965,7 +965,7 @@ const OwnerDashboard = ({ onLogout }) => {
                               alignItems: 'center',
                               gap: '0.3rem'
                             }}
-                            title="Inspect RBI-compliant escrow ledger and security deposit state"
+                            title="Inspect security deposit ledger and refund state"
                           >
                             <ShieldCheck size={12} color="#059669" />
                             <span>Escrow Ledger</span>
@@ -1770,7 +1770,7 @@ const OwnerDashboard = ({ onLogout }) => {
                 gap: '0.5rem'
               }}>
                 <ShieldCheck size={16} color="#059669" />
-                <span>Protected by RBI-compliant 256-bit automated escrow clearing.</span>
+                <span>Protected by 256-bit SSL automated deposit clearing.</span>
               </div>
 
               {/* Action Buttons */}

@@ -455,7 +455,7 @@ const PaymentGatewayModal = ({
                 </span>
               </div>
               <p style={{ margin: 0, fontSize: '0.78rem', color: '#94a3b8' }}>
-                RBI Nodal Escrow Protected • 256-Bit SSL Encryption
+                256-Bit SSL Encrypted Checkout
               </p>
             </div>
           </div>
@@ -581,7 +581,7 @@ const PaymentGatewayModal = ({
               Payment Verified & Authorized!
             </h3>
             <p style={{ color: '#16a34a', fontSize: '1rem', fontWeight: 700, margin: '0 0 0.5rem' }}>
-              ₹{Number(totalAmount).toLocaleString('en-IN')} Secured in RBI Compliant Escrow
+              ₹{Number(totalAmount).toLocaleString('en-IN')} Payment Confirmed (Includes Refundable Deposit)
             </p>
             <span style={{ fontSize: '0.85rem', color: '#64748b' }}>
               Generating tax invoice and creating digital lease contracts...
@@ -1382,7 +1382,7 @@ const PaymentGatewayModal = ({
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
             <Lock size={12} color="#059669" />
-            <span>RBI Compliant Escrow Trust Custody & Razorpay SSL Protection</span>
+            <span>Razorpay 256-Bit SSL Encrypted Checkout</span>
           </div>
           <div style={{ display: 'flex', gap: '1rem' }}>
             <span>Instant Confirmation</span>

@@ -358,7 +358,7 @@ router.post('/checkout/', authenticateJWT, async (req, res) => {
           {
             stage: 'ORDER_CONFIRMED',
             title: 'Order Confirmed & Lease Contract Signed',
-            description: 'Digital rental agreement verified and security deposit held in RBI-compliant escrow.',
+            description: 'Digital rental agreement verified and refundable security deposit recorded.',
             timestamp: now.toISOString(),
             completed: true
           },

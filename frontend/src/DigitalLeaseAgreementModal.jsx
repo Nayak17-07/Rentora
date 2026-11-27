@@ -388,7 +388,7 @@ export default function DigitalLeaseAgreementModal({
               <strong>Fixed Tenure & Advance Billing:</strong> The Lessee agrees to lease the appliance for a fixed commitment of {targetTenure} months. Monthly subscriptions are billed automatically in advance on the same date each calendar month.
             </li>
             <li>
-              <strong>Segregated RBI-Compliant Escrow Protection:</strong> The refundable security deposit of ₹{targetDeposit} shall remain locked under Segregated Escrow Custody (Escrow ID: {targetEscrowId}) and shall be refunded 100% within 5 business days upon asset return following doorstep QA inspection.
+              <strong>Refundable Security Deposit Protection:</strong> The refundable security deposit of ₹{targetDeposit} (Deposit Reference: {targetEscrowId}) shall be refunded 100% within 5 business days upon asset return following doorstep QA inspection.
             </li>
             <li>
               <strong>Rentora Shield Damage Protection:</strong> The appliance is insured under the Rentora Shield policy with up to <strong>₹10,000 in accidental damage coverage</strong> absorbing ordinary cosmetic scuffs, electrical surges, and wear with zero deposit deduction.

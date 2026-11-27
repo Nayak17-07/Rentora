@@ -1,5 +1,5 @@
 import { showToast } from './utils/toast';
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { 
   X, 
   Truck, 
@@ -13,15 +13,9 @@ import {
   Copy, 
   Check, 
   Sparkles, 
-  UserCheck,
-  Navigation,
-  Radio,
-  Gauge,
-  Compass,
-  Zap,
-  RefreshCw
+  UserCheck
 } from 'lucide-react';
-import { fetchWithAuth, publicFetch } from './utils/api';
+import { fetchWithAuth } from './utils/api';
 
 const STAGES = [
   { key: 'ORDER_CONFIRMED', label: 'Order Confirmed', icon: CheckCircle2 },
@@ -32,7 +26,6 @@ const STAGES = [
 ];
 
 const DeliveryTrackerModal = ({ isOpen, onClose, rental, onRentalUpdated }) => {
-  const [activeView, setActiveView] = useState('stepper'); // 'live_map' | 'stepper'
   const [copied, setCopied] = useState(false);
   const [isRescheduling, setIsRescheduling] = useState(false);
   const [rescheduleSlot, setRescheduleSlot] = useState(
@@ -43,39 +36,7 @@ const DeliveryTrackerModal = ({ isOpen, onClose, rental, onRentalUpdated }) => {
   const [reschedulingLoading, setReschedulingLoading] = useState(false);
   const [rescheduleSuccess, setRescheduleSuccess] = useState('');
 
-  // Live GPS tracking state
-  const [liveGps, setLiveGps] = useState(null);
-  const [gpsLoading, setGpsLoading] = useState(false);
-  const [gpsSimProgress, setGpsSimProgress] = useState(0.68); // Progress along route (0 to 1)
-
   const rentalId = rental?.rental_id || rental?._id;
-
-  const fetchLiveGps = async () => {
-    if (!rentalId) return;
-    try {
-      setGpsLoading(true);
-      const res = await publicFetch(`/api/tracking/live/${rentalId}`);
-      if (res.ok) {
-        const data = await res.json();
-        setLiveGps(data);
-      }
-    } catch (err) {
-      console.error('Error fetching live GPS:', err);
-    } finally {
-      setGpsLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    if (isOpen && rentalId) {
-      fetchLiveGps();
-      // Periodically update simulated progress
-      const interval = setInterval(() => {
-        setGpsSimProgress(prev => (prev < 0.95 ? prev + 0.015 : 0.95));
-      }, 5000);
-      return () => clearInterval(interval);
-    }
-  }, [isOpen, rentalId]);
 
   if (!isOpen || !rental) return null;
 
@@ -130,26 +91,6 @@ const DeliveryTrackerModal = ({ isOpen, onClose, rental, onRentalUpdated }) => {
       setReschedulingLoading(false);
     }
   };
-
-  const distKm = liveGps?.distance_remaining_km || Number((14.8 * (1 - gpsSimProgress)).toFixed(1));
-  const etaMins = liveGps?.eta_minutes || Math.max(4, Math.round(distKm * 3.5));
-
-  // Compute animated vehicle coordinates on SVG map (width 600, height 260)
-  const mapWidth = 600;
-  const mapHeight = 240;
-  const startX = 60;
-  const startY = 190;
-  const endX = 530;
-  const endY = 55;
-
-  // Curvature control point
-  const ctrlX = 260;
-  const ctrlY = 70;
-
-  // Bezier curve point formula
-  const t = Math.min(0.96, Math.max(0.04, gpsSimProgress));
-  const vehX = (1 - t) * (1 - t) * startX + 2 * (1 - t) * t * ctrlX + t * t * endX;
-  const vehY = (1 - t) * (1 - t) * startY + 2 * (1 - t) * t * ctrlY + t * t * endY;
 
   return (
     <div style={{
@@ -225,66 +166,6 @@ const DeliveryTrackerModal = ({ isOpen, onClose, rental, onRentalUpdated }) => {
             }}
           >
             <X size={18} />
-          </button>
-        </div>
-
-        {/* View Switcher Tabs */}
-        <div style={{
-          display: 'flex',
-          borderBottom: '1px solid #e2e8f0',
-          background: '#f8fafc',
-          padding: '0 1.75rem'
-        }}>
-          <button
-            type="button"
-            onClick={() => setActiveView('live_map')}
-            style={{
-              padding: '0.85rem 1.25rem',
-              border: 'none',
-              background: 'none',
-              fontSize: '0.875rem',
-              fontWeight: 700,
-              cursor: 'pointer',
-              color: activeView === 'live_map' ? '#0284c7' : '#64748b',
-              borderBottom: activeView === 'live_map' ? '3px solid #0284c7' : '3px solid transparent',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.45rem'
-            }}
-          >
-            <Navigation size={16} />
-            <span>Interactive Live GPS Map</span>
-            <span style={{
-              background: '#e0f2fe',
-              color: '#0369a1',
-              padding: '1px 6px',
-              borderRadius: '999px',
-              fontSize: '0.7rem',
-              fontWeight: 800
-            }}>
-              Active
-            </span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setActiveView('stepper')}
-            style={{
-              padding: '0.85rem 1.25rem',
-              border: 'none',
-              background: 'none',
-              fontSize: '0.875rem',
-              fontWeight: 700,
-              cursor: 'pointer',
-              color: activeView === 'stepper' ? '#0284c7' : '#64748b',
-              borderBottom: activeView === 'stepper' ? '3px solid #0284c7' : '3px solid transparent',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.45rem'
-            }}
-          >
-            <CheckCircle2 size={16} />
-            <span>5-Stage Fulfillment Stepper</span>
           </button>
         </div>
 
@@ -368,186 +249,8 @@ const DeliveryTrackerModal = ({ isOpen, onClose, rental, onRentalUpdated }) => {
             </div>
           </div>
 
-          {/* VIEW 1: LIVE INTERACTIVE GPS ROUTE MAP */}
-          {activeView === 'live_map' && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-              {/* Dynamic ETA & Speed Gauge Bar */}
-              <div style={{
-                background: '#0f172a',
-                color: '#ffffff',
-                borderRadius: '16px',
-                padding: '1rem 1.25rem',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                flexWrap: 'wrap',
-                gap: '1rem',
-                boxShadow: '0 8px 24px rgba(15, 23, 42, 0.25)'
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                  <div style={{
-                    width: '46px',
-                    height: '46px',
-                    borderRadius: '12px',
-                    background: 'rgba(56, 189, 248, 0.2)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center'
-                  }}>
-                    <Truck size={24} color="#38bdf8" />
-                  </div>
-                  <div>
-                    <div style={{ fontSize: '0.72rem', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 700 }}>
-                      Live Arrival Countdown
-                    </div>
-                    <div style={{ fontSize: '1.35rem', fontWeight: 900, color: '#f8fafc', letterSpacing: '-0.02em' }}>
-                      Arriving in ~{etaMins} mins
-                    </div>
-                  </div>
-                </div>
-
-                <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
-                  <div>
-                    <div style={{ fontSize: '0.7rem', color: '#94a3b8' }}>Distance Left</div>
-                    <div style={{ fontSize: '1.1rem', fontWeight: 800, color: '#38bdf8' }}>
-                      {distKm} km
-                    </div>
-                  </div>
-                  <div style={{ borderLeft: '1px solid #334155', paddingLeft: '1.5rem' }}>
-                    <div style={{ fontSize: '0.7rem', color: '#94a3b8' }}>Vehicle Speed</div>
-                    <div style={{ fontSize: '1.1rem', fontWeight: 800, color: '#4ade80' }}>
-                      28 km/h
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Stylized Interactive Map Canvas */}
-              <div style={{
-                background: '#1e293b',
-                borderRadius: '16px',
-                border: '1px solid #334155',
-                overflow: 'hidden',
-                position: 'relative',
-                boxShadow: 'inset 0 2px 8px rgba(0,0,0,0.4)'
-              }}>
-                {/* Map Grid & Road Canvas */}
-                <svg width="100%" height={mapHeight} viewBox={`0 0 ${mapWidth} ${mapHeight}`} style={{ display: 'block' }}>
-                  <defs>
-                    <linearGradient id="routeGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-                      <stop offset="0%" stopColor="#38bdf8" />
-                      <stop offset="100%" stopColor="#4ade80" />
-                    </linearGradient>
-                    <radialGradient id="pulseGlow" cx="50%" cy="50%" r="50%">
-                      <stop offset="0%" stopColor="#38bdf8" stopOpacity="0.8" />
-                      <stop offset="100%" stopColor="#38bdf8" stopOpacity="0" />
-                    </radialGradient>
-                    <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
-                      <path d="M 40 0 L 0 0 0 40" fill="none" stroke="rgba(255,255,255,0.04)" strokeWidth="1" />
-                    </pattern>
-                  </defs>
-
-                  {/* Grid background */}
-                  <rect width={mapWidth} height={mapHeight} fill="#0f172a" />
-                  <rect width={mapWidth} height={mapHeight} fill="url(#grid)" />
-
-                  {/* Arterial Road Network (Map Simulation) */}
-                  <path d="M 20 180 Q 250 160 580 180" stroke="#334155" strokeWidth="14" fill="none" />
-                  <path d="M 20 180 Q 250 160 580 180" stroke="#1e293b" strokeWidth="10" fill="none" />
-                  
-                  <path d="M 320 20 L 300 230" stroke="#334155" strokeWidth="12" fill="none" />
-                  <path d="M 320 20 L 300 230" stroke="#1e293b" strokeWidth="8" fill="none" />
-
-                  {/* Active Delivery Route Polyline */}
-                  <path
-                    d={`M ${startX} ${startY} Q ${ctrlX} ${ctrlY} ${endX} ${endY}`}
-                    stroke="rgba(56, 189, 248, 0.25)"
-                    strokeWidth="8"
-                    fill="none"
-                  />
-                  <path
-                    d={`M ${startX} ${startY} Q ${ctrlX} ${ctrlY} ${endX} ${endY}`}
-                    stroke="url(#routeGradient)"
-                    strokeWidth="4"
-                    strokeDasharray="6 4"
-                    fill="none"
-                  />
-
-                  {/* Origin Depot Node */}
-                  <circle cx={startX} cy={startY} r="10" fill="#0284c7" />
-                  <circle cx={startX} cy={startY} r="5" fill="#ffffff" />
-                  <text x={startX - 15} y={startY + 26} fill="#94a3b8" fontSize="10" fontWeight="700">
-                    Depot Hub
-                  </text>
-
-                  {/* Customer Destination Node */}
-                  <circle cx={endX} cy={endY} r="10" fill="#e23744" />
-                  <circle cx={endX} cy={endY} r="5" fill="#ffffff" />
-                  <text x={endX - 35} y={endY - 14} fill="#f8fafc" fontSize="11" fontWeight="800">
-                    Your Doorstep
-                  </text>
-
-                  {/* Animated Vehicle Node */}
-                  <circle cx={vehX} cy={vehY} r="22" fill="url(#pulseGlow)" />
-                  <circle cx={vehX} cy={vehY} r="12" fill="#38bdf8" />
-                  <circle cx={vehX} cy={vehY} r="6" fill="#0f172a" />
-                </svg>
-
-                {/* Floating GPS HUD Overlay */}
-                <div style={{
-                  position: 'absolute',
-                  top: '12px',
-                  left: '14px',
-                  background: 'rgba(15, 23, 42, 0.85)',
-                  backdropFilter: 'blur(6px)',
-                  padding: '0.4rem 0.85rem',
-                  borderRadius: '8px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.45rem',
-                  border: '1px solid rgba(255,255,255,0.1)'
-                }}>
-                  <Radio size={14} color="#4ade80" />
-                  <span style={{ fontSize: '0.75rem', color: '#f8fafc', fontWeight: 600 }}>
-                    Live GPS Signal: High Precision (±2m)
-                  </span>
-                </div>
-
-                <div style={{
-                  position: 'absolute',
-                  bottom: '12px',
-                  right: '14px',
-                  display: 'flex',
-                  gap: '0.5rem'
-                }}>
-                  <button
-                    type="button"
-                    onClick={() => setGpsSimProgress(prev => (prev < 0.95 ? prev + 0.05 : 0.4))}
-                    style={{
-                      background: 'rgba(56, 189, 248, 0.9)',
-                      color: '#0f172a',
-                      border: 'none',
-                      borderRadius: '8px',
-                      padding: '0.4rem 0.75rem',
-                      fontSize: '0.75rem',
-                      fontWeight: 800,
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '0.3rem'
-                    }}
-                  >
-                    <Navigation size={13} />
-                    <span>Advance Vehicle Demo</span>
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* VIEW 2: 5-STAGE FULFILLMENT STEPPER */}
-          {activeView === 'stepper' && (
-            <div style={{ marginBottom: '1.5rem' }}>
+          {/* 5-STAGE FULFILLMENT STEPPER */}
+          <div style={{ marginBottom: '1.5rem' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', position: 'relative', marginBottom: '1rem', marginTop: '0.5rem' }}>
                 <div style={{
                   position: 'absolute',
@@ -605,7 +308,6 @@ const DeliveryTrackerModal = ({ isOpen, onClose, rental, onRentalUpdated }) => {
                 })}
               </div>
             </div>
-          )}
 
           {/* Assigned Field Engineer Card */}
           <div style={{

@@ -222,7 +222,7 @@ const BusinessIntelligenceTab = ({ onExport }) => {
             ₹{(fin.escrow_deposits_held || 68400).toLocaleString()}
           </div>
           <div style={{ fontSize: '0.75rem', color: '#059669' }}>
-            ✓ 100% RBI Escrow Backed • {fin.collection_efficiency_pct || '96.8'}% On-Time
+            ✓ Refundable Security Deposits • {fin.collection_efficiency_pct || '96.8'}% On-Time
           </div>
         </div>
       </div>
