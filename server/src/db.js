@@ -36,7 +36,6 @@ async function connectDb() {
   // Ensure TTL indexes and performance/uniqueness indexes across collections
   try {
     await Promise.allSettled([
-      db.collection('kyc_otps').createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0, background: true }),
       db.collection('signup_otps').createIndex({ expires_at: 1 }, { expireAfterSeconds: 0, background: true }),
       db.collection('password_resets').createIndex({ expires_at: 1 }, { expireAfterSeconds: 0, background: true }),
       db.collection('users').createIndex({ username: 1 }, { background: true }),

@@ -207,7 +207,7 @@ const PaymentGatewayModal = ({
         rzp.on('payment.failed', function (response) {
           setStage('input');
           const reason = response.error?.description || response.error?.reason || 'Gateway error';
-          setErrorMessage(`Payment declined: ${reason}. (Test Mode tip: Use Domestic Card 4111 1111 1111 1111 with 'Save Card' unchecked, or Netbanking HDFC -> [Success]).`);
+          setErrorMessage(`Payment declined: ${reason}. (Test Mode tip: Use UPI "success@razorpay", NetBanking -> [Success], or Indian Visa "4012 0010 3714 1112" / RuPay "6071 1500 0000 0004").`);
         });
         rzp.open();
       } else {

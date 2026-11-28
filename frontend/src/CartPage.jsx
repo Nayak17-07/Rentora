@@ -973,7 +973,9 @@ const CartPage = ({ onLogout }) => {
 
   const getSecurityDeposit = (item) => {
 
-    return item.appliance.security_deposit || Math.round((item.appliance.monthly_price || Math.round(item.appliance.daily_price * 30)) * 1.5);
+    return (item.appliance.security_deposit !== undefined && item.appliance.security_deposit !== null)
+      ? item.appliance.security_deposit
+      : Math.round((item.appliance.monthly_price || Math.round(item.appliance.daily_price * 30)) * 1.5);
 
   };
 

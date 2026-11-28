@@ -25,7 +25,6 @@ import {
   ShieldCheck,
   FileText,
   Download,
-  BarChart2,
   Wifi,
   AlertCircle,
   Sparkles,
@@ -596,7 +595,7 @@ const AdminDashboard = ({ onLogout }) => {
       } else {
         showToast.info(`15% Retention Voucher (RETENTION15) allocated for ${customer.username}.`, 'Retention Offer Queued');
       }
-    } catch (e) {
+    } catch {
       showToast.info(`15% Retention Voucher (RETENTION15) allocated for ${customer.username}.`, 'Retention Offer Queued');
     }
   };
@@ -651,8 +650,6 @@ const AdminDashboard = ({ onLogout }) => {
       </div>
     );
   }
-
-  const sales = dashboardData.sales_analytics || {};
 
   // Unique categories for catalog filtering
   const uniqueCategories = ['All', ...Array.from(new Set(appliances.map(a => a.category_id).filter(Boolean)))];
