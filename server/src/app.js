@@ -78,6 +78,7 @@ app.use(cors({
     }
     return callback(new Error('Cross-Origin Request Blocked by Rentora Security Policy'));
   },
+  credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'Idempotency-Key', 'idempotency-key']
 }));
